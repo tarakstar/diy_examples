@@ -153,7 +153,9 @@ void assign_data(Block* b,                                  // local block
          const diy::RegularBroadcastPartners& partners) // partners of the current block
 {
     unsigned   round    = rp.round();               // current round number
-    vector<int> mydata (10,1); // data to be broadcasted
+    //cout<<"round = "<<round<<endl;
+    std::vector<int> mydata (10,1); // data to be broadcasted
+    //int mydata=5;
 
     cout<<"Broadcasting data...."<<rp.gid()<<endl;
     cout<<"in out : "<<rp.in_link().size()<<"\t"<<rp.out_link().size()<<endl;
@@ -164,28 +166,29 @@ void assign_data(Block* b,                                  // local block
         // send to everyone without the self
         //if (rp.out_link().target(i).gid != rp.gid())
         //{
-            rp.enqueue(rp.out_link().target(i), &mydata);
-            fmt::print(stderr, "[{}:{}] Sent {} valuess to [{}]\n",
-                       rp.gid(), round, (int)mydata.size(), rp.out_link().target(i).gid);
+            rp.enqueue(rp.out_link().target(i), mydata);
+            //fmt::print(stderr, "[{}:{}] Sent {} valuess to [{}]\n",
+            //           rp.gid(), round, (int)mydata.size(), rp.out_link().target(i).gid);
         //} else
         //    fmt::print(stderr, "[{}:{}] Skipping sending to self\n", rp.gid(), round);
     }
 
     // now receive data which was sent and set block's vector<int> values from it.
-    cout<<"Receiving bcast..."<<rp.gid()<<endl;
+    //cout<<"Receiving bcast..."<<rp.gid()<<endl;
     for (int i = 0; i < rp.in_link().size(); ++i)
     {
         int nbr_gid = rp.in_link().target(i).gid;
-        if (nbr_gid == rp.gid())
+        /*if (nbr_gid == rp.gid())
         {
             fmt::print(stderr, "[{}:{}] Skipping receiving from self\n", rp.gid(), round);
             continue;
-        }
+        }*/
 
         std::vector<int>    in_vals;
-        cout<<"dequeue start "<<nbr_gid<<endl;
+        //int in_vals;
+        //cout<<"dequeue start "<<nbr_gid<<endl;
         rp.dequeue(nbr_gid, in_vals);
-        cout<<"dequeue success"<<endl;
+        //cout<<"dequeue success "<<endl;
         fmt::print(stderr, "[{}:{}] Received {} values from [{}]\n",
                    rp.gid(), round, (int)in_vals.size(), nbr_gid);
         for (size_t j = 0; j < in_vals.size(); ++j)
@@ -209,7 +212,8 @@ void print_block(Block* b,                             // local block
                b->bounds.min[0], b->bounds.min[1], b->bounds.min[2],
                b->bounds.max[0], b->bounds.max[1], b->bounds.max[2]);*/
 
-    if (verbose && cp.gid() == 0)
+    //if (verbose && cp.gid() == 0)
+    if (verbose)
     {
         fmt::print(stderr, "[{}] {} vals: ", cp.gid(), b->data.size());
         for (size_t i = 0; i < b->data.size(); ++i)
@@ -306,21 +310,21 @@ int main(int argc, char* argv[])
                 assigner,                            // Assigner object
                 bpartners,                            // RegularMergePartners object
                 &assign_data);                               // merge operator callback function
+   
 
-
-    //master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
-    //         { print_block(b, cp, verbose); });  // callback function for each local block
+    master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
+             { print_block(b, cp, verbose); });  // callback function for each local block
 
 
    // reduction
-   /*diy::reduce(master,                              // Master object
+   diy::reduce(master,                              // Master object
                 assigner,                            // Assigner object
                 partners,                            // RegularMergePartners object
                 &sum);                               // merge operator callback function
    
 
     master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
-             { print_block(b, cp, verbose); });  // callback function for each local block*/
+             { print_block(b, cp, verbose); });  // callback function for each local block
 
 
    
