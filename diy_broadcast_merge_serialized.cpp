@@ -19,6 +19,7 @@
 #include <diy/decomposition.hpp>
 #include <diy/assigner.hpp>
 #include <diy/master.hpp>
+#include <diy/serialization.hpp>
 
 #include "opts.h"
 
@@ -27,6 +28,16 @@ using namespace std;
 typedef     diy::ContinuousBounds       Bounds;
 typedef     diy::RegularContinuousLink  RCLink;
 
+// A class to test serialized data exchange
+class TestData{
+    public:
+      int x,y;
+      TestData() {}
+      TestData(int a) : x(a) {y=x*x;}
+      void print(){
+        std::cout<<"TestData "<<x<<"\t"<<y<<std::endl;
+      }
+};
 
 // --- block structure ---//
 
