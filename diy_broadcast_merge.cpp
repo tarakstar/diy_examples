@@ -18,6 +18,7 @@
 #include <diy/partners/broadcast.hpp>
 #include <diy/decomposition.hpp>
 #include <diy/assigner.hpp>
+#include <diy/master.hpp>
 
 #include "opts.h"
 
@@ -25,6 +26,24 @@ using namespace std;
 
 typedef     diy::ContinuousBounds       Bounds;
 typedef     diy::RegularContinuousLink  RCLink;
+
+class TestData{
+    public:
+      int xval,yval;
+      TestData(int a) : xval(a) {yval=xval*xval;}
+      void print(){std::cout<<"TestData "<<xval<<"\t"<<yval<<std::endl;}
+
+};
+
+namespace diy
+{
+  template<>
+  struct Serialization<TestData>
+  {
+    static void save(BinaryBuffer& bb, const TestData& p)       { diy::save(bb, p); }
+    static void load(BinaryBuffer& bb, TestData& p)             { diy::load(bb, p); }
+  };
+}
 
 // --- block structure ---//
 
@@ -147,7 +166,7 @@ void sum(Block* b,                                  // local block
 }
 
 //////////////////////////////////////////////////////////
-// This function broadcasts a vector<int> to all blocks and also received it.
+// This function broadcasts a vector<int> to all blocks and also receive it.
 void assign_data(Block* b,                                  // local block
          const diy::ReduceProxy& rp,                // communication proxy
          const diy::RegularBroadcastPartners& partners) // partners of the current block
