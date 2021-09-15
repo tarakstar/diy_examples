@@ -31,13 +31,25 @@ typedef     diy::RegularContinuousLink  RCLink;
 // A class to test serialized data exchange
 class TestData{
     public:
-      int x,y;
+      int x=0;
+      int y=0;
       TestData() {}
       TestData(int a) : x(a) {y=x*x;}
       void print(){
         std::cout<<"TestData "<<x<<"\t"<<y<<std::endl;
       }
 };
+
+namespace diy
+{
+  template<>
+  struct Serialization<TestData>
+  {
+    static void save(BinaryBuffer& bb, const TestData& p)       { diy::save(bb, p); }
+    static void load(BinaryBuffer& bb, TestData& p)             { diy::load(bb, p); }
+  };
+}
+
 
 // --- block structure ---//
 
@@ -76,6 +88,7 @@ struct Block
     // block data
     Bounds          bounds;
     vector<int>     data;
+    TestData td;
 
 private:
     Block()                                     {}
@@ -169,7 +182,16 @@ void assign_data(Block* b,                                  // local block
     unsigned   round    = rp.round();               // current round number
     //cout<<"round = "<<round<<endl;
     std::vector<int> mydata (10,1); // data to be broadcasted
+    std::vector<TestData> mydata2(10);
     //int mydata=5;
+  
+    for(int i=0;i<10;i++){
+      TestData td(i);
+      mydata2.push_back(td);
+    }
+
+    diy::MemoryBuffer bb;
+    save(bb,&mydata2);
     
     cout<<"Broadcasting data...."<<rp.gid()<<endl;
     cout<<"in out : "<<rp.in_link().size()<<"\t"<<rp.out_link().size()<<endl;
@@ -180,7 +202,9 @@ void assign_data(Block* b,                                  // local block
         // send to everyone without the self
         //if (rp.out_link().target(i).gid != rp.gid())
         //{
-            rp.enqueue(rp.out_link().target(i), mydata);
+            //rp.enqueue(rp.out_link().target(i), mydata);
+            //rp.enqueue(rp.out_link().target(i), mydata2);
+            rp.enqueue(rp.out_link().target(i), bb);
             //rp.enqueue(rp.out_link().target(i), bb);
             //fmt::print(stderr, "[{}:{}] Sent {} valuess to [{}]\n",
             //           rp.gid(), round, (int)mydata.size(), rp.out_link().target(i).gid);
@@ -188,26 +212,34 @@ void assign_data(Block* b,                                  // local block
         //    fmt::print(stderr, "[{}:{}] Skipping sending to self\n", rp.gid(), round);
     }
 
+    //diy::MemoryBuffer bb2;
+    //std::vector<TestData>*   datar;
+    //load(bb2,&mydatar);
+
     // now receive data which was sent and set block's vector<int> values from it.
     //cout<<"Receiving bcast..."<<rp.gid()<<endl;
     for (int i = 0; i < rp.in_link().size(); ++i)
     {
         int nbr_gid = rp.in_link().target(i).gid;
-        /*if (nbr_gid == rp.gid())
-        {
-            fmt::print(stderr, "[{}:{}] Skipping receiving from self\n", rp.gid(), round);
-            continue;
-        }*/
 
         std::vector<int>    in_vals;
+        std::vector<TestData>*   datar;
+
+        diy::MemoryBuffer bb2;
         //int in_vals;
         //cout<<"dequeue start "<<nbr_gid<<endl;
-        rp.dequeue(nbr_gid, in_vals);
+        //rp.dequeue(nbr_gid, in_vals);
+        rp.dequeue(nbr_gid, bb2);
+        load(bb2,datar);
+        std::cout << "Position: " << bb2.position << std::endl;
         //cout<<"dequeue success "<<endl;
-        fmt::print(stderr, "[{}:{}] Received {} values from [{}]\n",
-                   rp.gid(), round, (int)in_vals.size(), nbr_gid);
-        for (size_t j = 0; j < in_vals.size(); ++j)
-            (b->data)[j] = in_vals[j];
+        std::cout<<datar->size()<<std::endl;
+        //fmt::print(stderr, "[{}:{}] Received {} values from [{}]\n",
+        //           rp.gid(), round, (int)in_vals.size(), nbr_gid);
+        //for (size_t j = 0; j < data->size(); ++j)
+            //(b->data)[j] = in_vals[j];
+            //b->td = datar->at(nbr_gid);
+        //datar->at(i).print();
     }
    
 
@@ -230,10 +262,12 @@ void print_block(Block* b,                             // local block
     //if (verbose && cp.gid() == 0)
     if (verbose)
     {
-        fmt::print(stderr, "[{}] {} vals: ", cp.gid(), b->data.size());
+        /*fmt::print(stderr, "[{}] {} vals: ", cp.gid(), b->data.size());
         for (size_t i = 0; i < b->data.size(); ++i)
             fmt::print(stderr, "{}  ", b->data[i]);
-        fmt::print(stderr, "\n");
+        fmt::print(stderr, "\n");*/
+        std::cout<<cp.gid()<<"\t";
+        b->td.print();
     }
 }
 
@@ -332,7 +366,7 @@ int main(int argc, char* argv[])
 
 
    // reduction
-   diy::reduce(master,                              // Master object
+   /*diy::reduce(master,                              // Master object
                 assigner,                            // Assigner object
                 partners,                            // RegularMergePartners object
                 &sum);                               // merge operator callback function
@@ -340,7 +374,7 @@ int main(int argc, char* argv[])
 
     master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
              { print_block(b, cp, verbose); });  // callback function for each local block
-
+    */
 
    
 }

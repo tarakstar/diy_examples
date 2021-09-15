@@ -170,7 +170,6 @@ void assign_data(Block* b,                                  // local block
         //if (rp.out_link().target(i).gid != rp.gid())
         //{
             rp.enqueue(rp.out_link().target(i), mydata);
-            //rp.enqueue(rp.out_link().target(i), bb);
             //fmt::print(stderr, "[{}:{}] Sent {} valuess to [{}]\n",
             //           rp.gid(), round, (int)mydata.size(), rp.out_link().target(i).gid);
         //} else

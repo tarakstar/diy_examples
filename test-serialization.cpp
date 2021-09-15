@@ -1,12 +1,16 @@
 #include <iostream>
+#include <vector>
 #include <diy/serialization.hpp>
+
+using namespace std;
 
 class Test{
   int a,b;
   public:
+  Test() {}
   Test(int a_,int b_) : a(a_), b(b_) {};
   void print()
-  { std::cout<<a<<"\t"<<b<<std::endl;}
+  { std::cout<<"Test : "<<a<<"\t"<<b<<std::endl;}
 
 };
 
@@ -110,6 +114,8 @@ int main()
 
   //--------- Serialize Test class-----------------------
 
+  cout<<"-------------------------------------"<<endl;
+
   diy::MemoryBuffer bb1;
   Test t1(1,2);
   save(bb1, &t1);
@@ -123,11 +129,42 @@ int main()
   load(bb1,r1);
   r1->print();
 
-   load(bb1,r1);
+  load(bb1,r1);
   r1->print();
 
- 
+  std::cout << "Position: " << bb1.position << std::endl;
 
+  cout<<"-------------------------------------"<<endl;
 
+  diy::MemoryBuffer bb2;
+
+  std::cout<<"Now test a vector of objects"<<std::endl;
+
+  std::vector<Test> mydata;
+  for(int i=0;i<5;i++){
+    Test td(i,i+2);
+    mydata.push_back(td);
+  }
+
+  save(bb2,&mydata);
+
+  std::cout << "Position: " << bb2.position << std::endl;
+
+  bb2.reset();
+
+  std::cout << "Position: " << bb2.position << std::endl;
+
+  cout<<"Deserializing"<<endl;
+  Test tdr;
+
+  std::cout << "Position: " << bb2.position << std::endl;
+
+  std::vector<Test>* mydata2;
+  load(bb2,mydata2);
+  std::cout<<mydata2->size()<<std::endl;
+  for(int i=0;i<5;i++){
+    mydata2->at(i).print();
+    //mydata2[i].print();
+  }
 
 }
