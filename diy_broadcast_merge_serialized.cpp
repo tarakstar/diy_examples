@@ -236,10 +236,10 @@ void assign_data(Block* b,                                  // local block
         std::cout<<datar->size()<<std::endl;
         //fmt::print(stderr, "[{}:{}] Received {} values from [{}]\n",
         //           rp.gid(), round, (int)in_vals.size(), nbr_gid);
-        //for (size_t j = 0; j < data->size(); ++j)
+        b->td = datar->at(nbr_gid); // pick-up msg for at current block gid
+        for (size_t j = 0; j < datar->size(); ++j)
             //(b->data)[j] = in_vals[j];
-            //b->td = datar->at(nbr_gid);
-        //datar->at(i).print();
+            datar->at(i).print();
     }
    
 
