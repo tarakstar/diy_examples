@@ -33,10 +33,12 @@ class TestData{
     public:
       int x=0;
       int y=0;
+      double d=0.0;
       TestData() {}
       TestData(int a) : x(a) {y=x*x;}
+      void mysqrt() {d = sqrt(x);}
       void print(){
-        std::cout<<"TestData "<<x<<"\t"<<y<<std::endl;
+        std::cout<<"TestData "<<x<<"\t"<<y<<"\t"<<d<<std::endl;
       }
 };
 
@@ -189,7 +191,6 @@ void assign_data(Block* b,                                  // local block
       mydata2.push_back(td);
     }
 
-   
     cout<<"Broadcasting data...."<<rp.gid()<<endl;
     cout<<"in out : "<<rp.in_link().size()<<"\t"<<rp.out_link().size()<<endl;
 
@@ -197,8 +198,9 @@ void assign_data(Block* b,                                  // local block
     for (int i = 0; i < rp.out_link().size(); ++i)  
     {
              //rp.enqueue(rp.out_link().target(i), mydata);
-             rp.enqueue(rp.out_link().target(i), mydata2);
 
+             //if (rp.out_link().target(i).gid != rp.gid())
+             rp.enqueue(rp.out_link().target(i), &mydata2);
     }
 
     // now receive data which was sent and set block's vector<int> values from it.
@@ -208,17 +210,18 @@ void assign_data(Block* b,                                  // local block
         int nbr_gid = rp.in_link().target(i).gid;
 
         std::vector<int>    in_vals;
-        std::vector<TestData>   datar;
+        std::vector<TestData>*   datar;
 
         //cout<<"dequeue start "<<nbr_gid<<endl;
         rp.dequeue(nbr_gid, datar);
  
         //cout<<"dequeue success "<<endl;
-        std::cout<<datar.size()<<std::endl;
+        std::cout<<datar->size()<<std::endl;
       
-        b->td = datar.at(nbr_gid); // pick-up msg for at current block gid
+        b->td = datar->at(rp.gid()); // pick-up msg for at current block gid
         //for (size_t j = 0; j < datar->size(); ++j)
-        //    datar->at(i).print();
+        //    datar->at(j).print();
+        
     }
    
 
