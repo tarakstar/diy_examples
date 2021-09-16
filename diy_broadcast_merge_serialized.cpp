@@ -182,39 +182,24 @@ void assign_data(Block* b,                                  // local block
     unsigned   round    = rp.round();               // current round number
     //cout<<"round = "<<round<<endl;
     std::vector<int> mydata (10,1); // data to be broadcasted
-    std::vector<TestData> mydata2(10);
-    //int mydata=5;
+    std::vector<TestData> mydata2;
   
     for(int i=0;i<10;i++){
       TestData td(i);
       mydata2.push_back(td);
     }
 
-    diy::MemoryBuffer bb;
-    save(bb,&mydata2);
-    
+   
     cout<<"Broadcasting data...."<<rp.gid()<<endl;
     cout<<"in out : "<<rp.in_link().size()<<"\t"<<rp.out_link().size()<<endl;
 
     // send data to others but not to the self
-    for (int i = 0; i < rp.out_link().size(); ++i)    // redundant since size should equal to 1
+    for (int i = 0; i < rp.out_link().size(); ++i)  
     {
-        // send to everyone without the self
-        //if (rp.out_link().target(i).gid != rp.gid())
-        //{
-            //rp.enqueue(rp.out_link().target(i), mydata);
-            //rp.enqueue(rp.out_link().target(i), mydata2);
-            rp.enqueue(rp.out_link().target(i), bb);
-            //rp.enqueue(rp.out_link().target(i), bb);
-            //fmt::print(stderr, "[{}:{}] Sent {} valuess to [{}]\n",
-            //           rp.gid(), round, (int)mydata.size(), rp.out_link().target(i).gid);
-        //} else
-        //    fmt::print(stderr, "[{}:{}] Skipping sending to self\n", rp.gid(), round);
-    }
+             //rp.enqueue(rp.out_link().target(i), mydata);
+             rp.enqueue(rp.out_link().target(i), mydata2);
 
-    //diy::MemoryBuffer bb2;
-    //std::vector<TestData>*   datar;
-    //load(bb2,&mydatar);
+    }
 
     // now receive data which was sent and set block's vector<int> values from it.
     //cout<<"Receiving bcast..."<<rp.gid()<<endl;
@@ -223,23 +208,17 @@ void assign_data(Block* b,                                  // local block
         int nbr_gid = rp.in_link().target(i).gid;
 
         std::vector<int>    in_vals;
-        std::vector<TestData>*   datar;
+        std::vector<TestData>   datar;
 
-        diy::MemoryBuffer bb2;
-        //int in_vals;
         //cout<<"dequeue start "<<nbr_gid<<endl;
-        //rp.dequeue(nbr_gid, in_vals);
-        rp.dequeue(nbr_gid, bb2);
-        load(bb2,datar);
-        std::cout << "Position: " << bb2.position << std::endl;
+        rp.dequeue(nbr_gid, datar);
+ 
         //cout<<"dequeue success "<<endl;
-        std::cout<<datar->size()<<std::endl;
-        //fmt::print(stderr, "[{}:{}] Received {} values from [{}]\n",
-        //           rp.gid(), round, (int)in_vals.size(), nbr_gid);
-        b->td = datar->at(nbr_gid); // pick-up msg for at current block gid
-        for (size_t j = 0; j < datar->size(); ++j)
-            //(b->data)[j] = in_vals[j];
-            datar->at(i).print();
+        std::cout<<datar.size()<<std::endl;
+      
+        b->td = datar.at(nbr_gid); // pick-up msg for at current block gid
+        //for (size_t j = 0; j < datar->size(); ++j)
+        //    datar->at(i).print();
     }
    
 
@@ -254,19 +233,11 @@ void print_block(Block* b,                             // local block
                  const diy::Master::ProxyWithLink& cp, // communication proxy
                  bool verbose)                         // user-defined additional arguments
 {
-    /*fmt::print(stderr, "[{}] Bounds: {} {} {} -- {} {} {}\n",
-               cp.gid(),
-               b->bounds.min[0], b->bounds.min[1], b->bounds.min[2],
-               b->bounds.max[0], b->bounds.max[1], b->bounds.max[2]);*/
 
     //if (verbose && cp.gid() == 0)
     if (verbose)
     {
-        /*fmt::print(stderr, "[{}] {} vals: ", cp.gid(), b->data.size());
-        for (size_t i = 0; i < b->data.size(); ++i)
-            fmt::print(stderr, "{}  ", b->data[i]);
-        fmt::print(stderr, "\n");*/
-        std::cout<<cp.gid()<<"\t";
+         std::cout<<cp.gid()<<"\t";
         b->td.print();
     }
 }
