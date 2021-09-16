@@ -33,7 +33,7 @@ class TestData{
     public:
       int x=0;
       int y=0;
-      double d=0.0;
+      int d=0.0;
       TestData() {}
       TestData(int a) : x(a) {y=x*x;}
       void mysqrt() {d = sqrt(x);}
@@ -42,15 +42,36 @@ class TestData{
       }
 };
 
+/*namespace diy
+{
+  template<>
+  struct Serialization<TestData>
+  {
+    static void save(BinaryBuffer& bb, const TestData& p)       { diy::save(bb, p);cout<<"debug1..."<<endl; }
+    static void load(BinaryBuffer& bb, TestData& p)             { diy::load(bb, p);cout<<"debug2..."<<endl; }
+  };
+}*/
+
 namespace diy
 {
   template<>
   struct Serialization<TestData>
   {
-    static void save(BinaryBuffer& bb, const TestData& p)       { diy::save(bb, p); }
-    static void load(BinaryBuffer& bb, TestData& p)             { diy::load(bb, p); }
+    static void save(BinaryBuffer& bb, const TestData& p)       
+    { diy::save(bb, p.x); 
+      diy::save(bb, p.y);
+      diy::save(bb,p.d);
+      cout<<"debug1..."<<endl;
+    }
+    static void load(BinaryBuffer& bb, TestData& p)   
+    { diy::load(bb, p.x); 
+      diy::load(bb, p.y);
+      diy::load(bb,p.d);
+      cout<<"debug2..."<<endl;    
+    }
   };
 }
+
 
 
 // --- block structure ---//
@@ -90,6 +111,7 @@ struct Block
     // block data
     Bounds          bounds{0};
     vector<int>     data;
+    int mynum;
     TestData td;
 
 private:
@@ -183,12 +205,14 @@ void assign_data(Block* b,                                  // local block
 {
     unsigned   round    = rp.round();               // current round number
     //cout<<"round = "<<round<<endl;
-    std::vector<int> mydata (10,1); // data to be broadcasted
+    std::vector<int> mydata(10); // data to be broadcasted
     std::vector<TestData> mydata2;
+    TestData tdobj(15);
   
     for(int i=0;i<10;i++){
       TestData td(i);
       mydata2.push_back(td);
+      mydata[i] = i;
     }
 
     cout<<"Broadcasting data...."<<rp.gid()<<endl;
@@ -200,7 +224,9 @@ void assign_data(Block* b,                                  // local block
              //rp.enqueue(rp.out_link().target(i), mydata);
 
              //if (rp.out_link().target(i).gid != rp.gid())
-             rp.enqueue(rp.out_link().target(i), &mydata2);
+             //rp.enqueue(rp.out_link().target(i), mydata);
+             //rp.enqueue(rp.out_link().target(i), &mydata2);
+             rp.enqueue(rp.out_link().target(i), &tdobj);
     }
 
     // now receive data which was sent and set block's vector<int> values from it.
@@ -210,22 +236,28 @@ void assign_data(Block* b,                                  // local block
         int nbr_gid = rp.in_link().target(i).gid;
 
         std::vector<int>    in_vals;
-        std::vector<TestData>*   datar;
+        std::vector<TestData>   datar;
+        TestData tdobjr;
 
-        //cout<<"dequeue start "<<nbr_gid<<endl;
-        rp.dequeue(nbr_gid, datar);
+        cout<<"dequeue start "<<nbr_gid<<"\t"<<rp.gid()<<endl;
+        //rp.dequeue(nbr_gid, in_vals);
+        //rp.dequeue(nbr_gid, datar);
+        rp.dequeue(nbr_gid, tdobjr);
  
         //cout<<"dequeue success "<<endl;
-        std::cout<<datar->size()<<std::endl;
+        //std::cout<<datar->size()<<std::endl;
       
-        b->td = datar->at(rp.gid()); // pick-up msg for at current block gid
+        //b->td = datar->at(rp.gid()); // pick-up msg for at current block gid
+        b->td =  tdobjr;
+        //b->mynum = in_vals[rp.gid()];
+
         //for (size_t j = 0; j < datar->size(); ++j)
         //    datar->at(j).print();
         
     }
    
 
-    cout<<"Broadcast complete."<<endl;
+    //cout<<"Broadcast complete."<<endl;
 }
 //////////////////////////////////////////////////////////
 
@@ -240,7 +272,8 @@ void print_block(Block* b,                             // local block
     //if (verbose && cp.gid() == 0)
     if (verbose)
     {
-         std::cout<<cp.gid()<<"\t";
+        cout<<"mynum : "<<b->mynum<<endl;
+        std::cout<<cp.gid()<<"\t";
         b->td.print();
     }
 }
