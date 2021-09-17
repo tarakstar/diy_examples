@@ -33,7 +33,7 @@ class TestData{
     public:
       int x=0;
       int y=0;
-      int d=0.0;
+      double d=0.0;
       TestData() {}
       TestData(int a) : x(a) {y=x*x;}
       void mysqrt() {d = sqrt(x);}
@@ -61,13 +61,13 @@ namespace diy
     { diy::save(bb, p.x); 
       diy::save(bb, p.y);
       diy::save(bb,p.d);
-      cout<<"debug1..."<<endl;
+      //cout<<"debug1..."<<endl;
     }
     static void load(BinaryBuffer& bb, TestData& p)   
     { diy::load(bb, p.x); 
       diy::load(bb, p.y);
       diy::load(bb,p.d);
-      cout<<"debug2..."<<endl;    
+      //cout<<"debug2..."<<endl;    
     }
   };
 }
@@ -197,6 +197,18 @@ void sum(Block* b,                                  // local block
     }
 }
 
+
+//////////////////////////////////////////////////////////
+// This function involves computation on block data
+void run_computations(Block* b,                             // local block
+                 const diy::Master::ProxyWithLink& cp, // communication proxy
+                 bool verbose)                         //
+{
+
+    b->td.mysqrt();
+   
+}
+
 //////////////////////////////////////////////////////////
 // This function broadcasts a vector<int> to all blocks and also receive it.
 void assign_data(Block* b,                                  // local block
@@ -215,8 +227,8 @@ void assign_data(Block* b,                                  // local block
       mydata[i] = i;
     }
 
-    cout<<"Broadcasting data...."<<rp.gid()<<endl;
-    cout<<"in out : "<<rp.in_link().size()<<"\t"<<rp.out_link().size()<<endl;
+    //cout<<"Broadcasting data...."<<rp.gid()<<endl;
+    //cout<<"in out : "<<rp.in_link().size()<<"\t"<<rp.out_link().size()<<endl;
 
     // send data to others but not to the self
     for (int i = 0; i < rp.out_link().size(); ++i)  
@@ -224,9 +236,11 @@ void assign_data(Block* b,                                  // local block
              //rp.enqueue(rp.out_link().target(i), mydata);
 
              //if (rp.out_link().target(i).gid != rp.gid())
+
+             // The following lines try eneueing different data types
              //rp.enqueue(rp.out_link().target(i), mydata);
-             //rp.enqueue(rp.out_link().target(i), &mydata2);
-             rp.enqueue(rp.out_link().target(i), &tdobj);
+             rp.enqueue(rp.out_link().target(i), mydata2);
+             //rp.enqueue(rp.out_link().target(i), tdobj);
     }
 
     // now receive data which was sent and set block's vector<int> values from it.
@@ -239,16 +253,16 @@ void assign_data(Block* b,                                  // local block
         std::vector<TestData>   datar;
         TestData tdobjr;
 
-        cout<<"dequeue start "<<nbr_gid<<"\t"<<rp.gid()<<endl;
+        //cout<<"dequeue start "<<nbr_gid<<"\t"<<rp.gid()<<endl;
+        // The following lines try deneueing different data types
         //rp.dequeue(nbr_gid, in_vals);
-        //rp.dequeue(nbr_gid, datar);
-        rp.dequeue(nbr_gid, tdobjr);
+        rp.dequeue(nbr_gid, datar);
+        //rp.dequeue(nbr_gid, tdobjr);
  
         //cout<<"dequeue success "<<endl;
         //std::cout<<datar->size()<<std::endl;
-      
-        //b->td = datar->at(rp.gid()); // pick-up msg for at current block gid
-        b->td =  tdobjr;
+        b->td = datar.at(rp.gid()); // pick-up msg for at current block gid
+        //b->td =  tdobjr;
         //b->mynum = in_vals[rp.gid()];
 
         //for (size_t j = 0; j < datar->size(); ++j)
@@ -272,7 +286,7 @@ void print_block(Block* b,                             // local block
     //if (verbose && cp.gid() == 0)
     if (verbose)
     {
-        cout<<"mynum : "<<b->mynum<<endl;
+        //cout<<"mynum : "<<b->mynum<<endl;
         std::cout<<cp.gid()<<"\t";
         b->td.print();
     }
@@ -357,19 +371,25 @@ int main(int argc, char* argv[])
 
     diy::RegularBroadcastPartners bpartners(decomposer,k,contiguous);
 
+    cout<<"Block TestData is empty."<<endl;
     master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
              { print_block(b, cp, verbose); });  // callback function for each local block
 
 
     // broadcast with RegularBroadcastPartners
+    // Assign points on which to perform computations
     diy::reduce(master,                              // Master object
                 assigner,                            // Assigner object
                 bpartners,                            // RegularMergePartners object
                 &assign_data);                               // merge operator callback function
    
-
+    cout<<"Now we have TestData."<<endl;
     master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
              { print_block(b, cp, verbose); });  // callback function for each local block
+
+    // Run computations in blocks
+    master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
+             { run_computations(b, cp, verbose); });  // callback function for each local block
 
 
    // reduction
@@ -377,11 +397,12 @@ int main(int argc, char* argv[])
                 assigner,                            // Assigner object
                 partners,                            // RegularMergePartners object
                 &sum);                               // merge operator callback function
-   
+   */
 
+    cout<<"Printing block TestData contents and results after computations."<<endl;
     master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
              { print_block(b, cp, verbose); });  // callback function for each local block
-    */
+   
 
    
 }
