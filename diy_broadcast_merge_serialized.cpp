@@ -30,46 +30,46 @@ typedef     diy::RegularContinuousLink  RCLink;
 
 // A class to test serialized data exchange
 class TestData{
-    public:
-      int x=0;
-      int y=0;
-      double d=0.0;
-      TestData() {}
-      TestData(int a) : x(a) {y=x*x;}
-      void mysqrt() {d = sqrt(x);}
-      void print(){
-        std::cout<<"TestData "<<x<<"\t"<<y<<"\t"<<d<<std::endl;
-      }
+  public:
+    int x=0;
+    int y=0;
+    double d=0.0;
+    TestData() {}
+    TestData(int a) : x(a) {y=x*x;}
+    void mysqrt() {d = sqrt(x);}
+    void print(){
+      std::cout<<"TestData "<<x<<"\t"<<y<<"\t"<<d<<std::endl;
+    }
 };
 
 /*namespace diy
-{
+  {
   template<>
   struct Serialization<TestData>
   {
-    static void save(BinaryBuffer& bb, const TestData& p)       { diy::save(bb, p);cout<<"debug1..."<<endl; }
-    static void load(BinaryBuffer& bb, TestData& p)             { diy::load(bb, p);cout<<"debug2..."<<endl; }
+  static void save(BinaryBuffer& bb, const TestData& p)       { diy::save(bb, p);cout<<"debug1..."<<endl; }
+  static void load(BinaryBuffer& bb, TestData& p)             { diy::load(bb, p);cout<<"debug2..."<<endl; }
   };
-}*/
+  }*/
 
 namespace diy
 {
   template<>
-  struct Serialization<TestData>
-  {
-    static void save(BinaryBuffer& bb, const TestData& p)       
-    { diy::save(bb, p.x); 
-      diy::save(bb, p.y);
-      diy::save(bb,p.d);
-      //cout<<"debug1..."<<endl;
-    }
-    static void load(BinaryBuffer& bb, TestData& p)   
-    { diy::load(bb, p.x); 
-      diy::load(bb, p.y);
-      diy::load(bb,p.d);
-      //cout<<"debug2..."<<endl;    
-    }
-  };
+    struct Serialization<TestData>
+    {
+      static void save(BinaryBuffer& bb, const TestData& p)       
+      { diy::save(bb, p.x); 
+        diy::save(bb, p.y);
+        diy::save(bb,p.d);
+        //cout<<"debug1..."<<endl;
+      }
+      static void load(BinaryBuffer& bb, TestData& p)   
+      { diy::load(bb, p.x); 
+        diy::load(bb, p.y);
+        diy::load(bb,p.d);
+        //cout<<"debug2..."<<endl;    
+      }
+    };
 }
 
 
@@ -84,38 +84,38 @@ namespace diy
 // they can be member functions of the block, as below, or separate standalone functions
 struct Block
 {
-    Block(const Bounds& bounds_):
-        bounds(bounds_)                         {}
+  Block(const Bounds& bounds_):
+    bounds(bounds_)                         {}
 
-    static void*    create()                                   // allocate a new block
-    { return new Block; }
-    static void     destroy(void* b)                           // free a block
-    { delete static_cast<Block*>(b); }
-    static void     save(const void* b, diy::BinaryBuffer& bb) // serialize the block and write it
-    {
-        diy::save(bb, static_cast<const Block*>(b)->bounds);
-        diy::save(bb, static_cast<const Block*>(b)->data);
-    }
-    static void     load(void* b, diy::BinaryBuffer& bb)       // read the block and deserialize it
-    {
-        diy::load(bb, static_cast<Block*>(b)->bounds);
-        diy::load(bb, static_cast<Block*>(b)->data);
-    }
+  static void*    create()                                   // allocate a new block
+  { return new Block; }
+  static void     destroy(void* b)                           // free a block
+  { delete static_cast<Block*>(b); }
+  static void     save(const void* b, diy::BinaryBuffer& bb) // serialize the block and write it
+  {
+    diy::save(bb, static_cast<const Block*>(b)->bounds);
+    diy::save(bb, static_cast<const Block*>(b)->data);
+  }
+  static void     load(void* b, diy::BinaryBuffer& bb)       // read the block and deserialize it
+  {
+    diy::load(bb, static_cast<Block*>(b)->bounds);
+    diy::load(bb, static_cast<Block*>(b)->data);
+  }
 
-    void            generate_data(size_t n)                    // initialize block values
-    {
-        data.resize(n);
-        for (size_t i = 0; i < n; ++i)
-            data[i] = i;
-    }
-    // block data
-    Bounds          bounds{0};
-    vector<int>     data;
-    int mynum;
-    TestData td;
+  void            generate_data(size_t n)                    // initialize block values
+  {
+    data.resize(n);
+    for (size_t i = 0; i < n; ++i)
+      data[i] = i;
+  }
+  // block data
+  Bounds          bounds{0};
+  vector<int>     data;
+  double myresult;
+  TestData td;
 
-private:
-    Block() {}
+  private:
+  Block() {}
 };
 
 // diy::decompose needs to have a function defined to create a block
@@ -123,155 +123,137 @@ private:
 // it could have also been written as a standalone function
 struct AddBlock
 {
-    AddBlock(diy::Master& master_, size_t num_points_):
-        master(master_),
-        num_points(num_points_)
-        {}
+  AddBlock(diy::Master& master_, size_t num_points_):
+    master(master_),
+    num_points(num_points_)
+  {}
 
-    // this is the function that is needed for diy::decompose
-    void  operator()(int gid,                // block global id
-                     const Bounds& core,     // block bounds without any ghost added
-                     const Bounds& bounds,   // block bounds including any ghost region added
-                     const Bounds& domain,   // global data bounds
-                     const RCLink& link)     // neighborhood
-        const
-        {
-            Block*          b   = new Block(core);
-            RCLink*         l   = new RCLink(link);
-            diy::Master&    m   = const_cast<diy::Master&>(master);
+  // this is the function that is needed for diy::decompose
+  void  operator()(int gid,                // block global id
+      const Bounds& core,     // block bounds without any ghost added
+      const Bounds& bounds,   // block bounds including any ghost region added
+      const Bounds& domain,   // global data bounds
+      const RCLink& link)     // neighborhood
+    const
+    {
+      Block*          b   = new Block(core);
+      RCLink*         l   = new RCLink(link);
+      diy::Master&    m   = const_cast<diy::Master&>(master);
 
-            m.add(gid, b, l); // add block to the master (mandatory)
+      m.add(gid, b, l); // add block to the master (mandatory)
 
-            b->generate_data(num_points);          // initialize block data (typical)
-        }
+      b->generate_data(num_points);          // initialize block data (typical)
+    }
 
-    diy::Master&  master;
-    size_t        num_points;
+  diy::Master&  master;
+  size_t        num_points;
 };
 
-// --- callback functions ---//
-
-//
-// callback function for merge operator, called in each round of the reduction
-// one block is the root of the group
-// link is the neighborhood of blocks in the group
-// root block of the group receives data from other blocks in the group and reduces the data
-// nonroot blocks send data to the root
-//
+// Do something with results of block computations:
+// In this example : sum (xi^2)
 void sum(Block* b,                                  // local block
-         const diy::ReduceProxy& rp,                // communication proxy
-         const diy::RegularMergePartners& partners) // partners of the current block
+    const diy::ReduceProxy& rp,                // communication proxy
+    const diy::RegularMergePartners& partners) // partners of the current block
 {
-    unsigned   round    = rp.round();               // current round number
+  unsigned   round    = rp.round();               // current round number
 
-    // step 1: dequeue and merge
-    for (int i = 0; i < rp.in_link().size(); ++i)
+
+  // step 1: dequeue and merge
+  for (int i = 0; i < rp.in_link().size(); ++i)
+  {
+    int nbr_gid = rp.in_link().target(i).gid;
+    //if (nbr_gid == rp.gid())
+      //continue;
+
+    TestData td;
+    rp.dequeue(nbr_gid, td);
+    b->myresult += td.y;
+
+  }
+
+  // step 2: enqueue
+  for (int i = 0; i < rp.out_link().size(); ++i)    // redundant since size should equal to 1
+  {
+    // only send to root of group, but not self
+    //if (rp.out_link().target(i).gid != rp.gid())
     {
-        int nbr_gid = rp.in_link().target(i).gid;
-        if (nbr_gid == rp.gid())
-        {
-            fmt::print(stderr, "[{}:{}] Skipping receiving from self\n", rp.gid(), round);
-            continue;
-        }
+      rp.enqueue(rp.out_link().target(i), b->td);
 
-        std::vector<int>    in_vals;
-        rp.dequeue(nbr_gid, in_vals);
-        fmt::print(stderr, "[{}:{}] Received {} values from [{}]\n",
-                   rp.gid(), round, (int)in_vals.size(), nbr_gid);
-        for (size_t j = 0; j < in_vals.size(); ++j)
-            (b->data)[j] += in_vals[j];
     }
 
-    // step 2: enqueue
-    for (int i = 0; i < rp.out_link().size(); ++i)    // redundant since size should equal to 1
-    {
-        // only send to root of group, but not self
-        if (rp.out_link().target(i).gid != rp.gid())
-        {
-            rp.enqueue(rp.out_link().target(i), b->data);
-            fmt::print(stderr, "[{}:{}] Sent {} valuess to [{}]\n",
-                       rp.gid(), round, (int)b->data.size(), rp.out_link().target(i).gid);
-        } else
-            fmt::print(stderr, "[{}:{}] Skipping sending to self\n", rp.gid(), round);
+  }
 
-    }
 }
 
 
 //////////////////////////////////////////////////////////
 // This function involves computation on block data
 void run_computations(Block* b,                             // local block
-                 const diy::Master::ProxyWithLink& cp, // communication proxy
-                 bool verbose)                         //
+    const diy::Master::ProxyWithLink& cp, // communication proxy
+    bool verbose)                         //
 {
 
-    b->td.mysqrt();
-   
+  b->td.mysqrt();
+
 }
 
 //////////////////////////////////////////////////////////
 // This function broadcasts a vector<int> to all blocks and also receive it.
 void assign_data(Block* b,                                  // local block
-         const diy::ReduceProxy& rp,                // communication proxy
-         const diy::RegularBroadcastPartners& partners) // partners of the current block
+    const diy::ReduceProxy& rp,                // communication proxy
+    const diy::RegularBroadcastPartners& partners) // partners of the current block
 {
-    unsigned   round    = rp.round();               // current round number
-    //cout<<"round = "<<round<<endl;
-    std::vector<int> mydata(10); // data to be broadcasted
-    std::vector<TestData> mydata2;
-    TestData tdobj(15);
-  
-    for(int i=0;i<10;i++){
-      TestData td(i);
-      mydata2.push_back(td);
-      mydata[i] = i;
-    }
+  unsigned   round    = rp.round();               // current round number
+  //cout<<"round = "<<round<<endl;
+  std::vector<int> mydata; // data to be broadcasted
+  std::vector<TestData> mydata2;
+  TestData tdobj(15);
 
-    //cout<<"Broadcasting data...."<<rp.gid()<<endl;
-    //cout<<"in out : "<<rp.in_link().size()<<"\t"<<rp.out_link().size()<<endl;
+  for(int i=0;i<10;i++){
+    TestData td(i);
+    mydata2.push_back(td);
+    mydata.push_back(i);
+  }
 
-    // send data to others but not to the self
-    for (int i = 0; i < rp.out_link().size(); ++i)  
-    {
-             //rp.enqueue(rp.out_link().target(i), mydata);
+  //cout<<"Broadcasting data...."<<rp.gid()<<endl;
+  //cout<<"in out : "<<rp.in_link().size()<<"\t"<<rp.out_link().size()<<endl;
 
-             //if (rp.out_link().target(i).gid != rp.gid())
+  // send data to others but not to the self
+  for (int i = 0; i < rp.out_link().size(); ++i)  
+  {
+    // The following lines try eneueing different data types
+    //rp.enqueue(rp.out_link().target(i), mydata);
+    rp.enqueue(rp.out_link().target(i), mydata2);
+    //rp.enqueue(rp.out_link().target(i), tdobj);
+  }
 
-             // The following lines try eneueing different data types
-             //rp.enqueue(rp.out_link().target(i), mydata);
-             rp.enqueue(rp.out_link().target(i), mydata2);
-             //rp.enqueue(rp.out_link().target(i), tdobj);
-    }
+  // now receive data which was sent and set block's vector<int> values from it.
+  //cout<<"Receiving bcast..."<<rp.gid()<<endl;
+  for (int i = 0; i < rp.in_link().size(); ++i)
+  {
+    int nbr_gid = rp.in_link().target(i).gid;
 
-    // now receive data which was sent and set block's vector<int> values from it.
-    //cout<<"Receiving bcast..."<<rp.gid()<<endl;
-    for (int i = 0; i < rp.in_link().size(); ++i)
-    {
-        int nbr_gid = rp.in_link().target(i).gid;
+    std::vector<int>    in_vals;
+    std::vector<TestData>   datar;
+    TestData tdobjr;
 
-        std::vector<int>    in_vals;
-        std::vector<TestData>   datar;
-        TestData tdobjr;
+    //cout<<"dequeue start "<<nbr_gid<<"\t"<<rp.gid()<<endl;
+    // The following lines try deneueing different data types
 
-        //cout<<"dequeue start "<<nbr_gid<<"\t"<<rp.gid()<<endl;
-        // The following lines try deneueing different data types
-        //rp.dequeue(nbr_gid, in_vals);
-        rp.dequeue(nbr_gid, datar);
-        //rp.dequeue(nbr_gid, tdobjr);
- 
-        //cout<<"dequeue success "<<endl;
-        //std::cout<<datar->size()<<std::endl;
-        b->td = datar.at(rp.gid()); // pick-up msg for at current block gid
-        //b->td =  tdobjr;
-        //b->mynum = in_vals[rp.gid()];
+    //rp.dequeue(nbr_gid, in_vals); // vector<int>
+    rp.dequeue(nbr_gid, datar); // vector<TestData>
+    //rp.dequeue(nbr_gid, tdobjr); // TestData
 
-        //for (size_t j = 0; j < datar->size(); ++j)
-        //    datar->at(j).print();
-        
-    }
-   
+    //cout<<"dequeue success "<<endl;
+    //std::cout<<datar->size()<<std::endl;
+    b->td = datar.at(rp.gid()); // pick-up msg for at current block gid
+    //b->td =  tdobjr;
+    //b->mynum = in_vals[rp.gid()];
 
-    //cout<<"Broadcast complete."<<endl;
+  }
+
+
+  //cout<<"Broadcast complete."<<endl;
 }
 //////////////////////////////////////////////////////////
 
@@ -279,130 +261,131 @@ void assign_data(Block* b,                                  // local block
 // prints the block values
 //
 void print_block(Block* b,                             // local block
-                 const diy::Master::ProxyWithLink& cp, // communication proxy
-                 bool verbose)                         // user-defined additional arguments
+    const diy::Master::ProxyWithLink& cp, // communication proxy
+    bool verbose)                         // user-defined additional arguments
 {
 
-    //if (verbose && cp.gid() == 0)
-    if (verbose)
-    {
-        //cout<<"mynum : "<<b->mynum<<endl;
-        std::cout<<cp.gid()<<"\t";
-        b->td.print();
-    }
+  //if (verbose && cp.gid() == 0)
+  if (verbose)
+  {
+    //cout<<"myresult : "<<b->myresult<<endl;
+    std::cout<<cp.gid()<<"\t";
+    b->td.print();
+    cout<<"Result = "<<b->myresult<<endl;
+  }
 }
 
 // --- main program ---//
 
 int main(int argc, char* argv[])
 {
-    diy::mpi::environment     env(argc, argv); // equivalent of MPI_Init(argc, argv)/MPI_Finalize()
-    diy::mpi::communicator    world;           // equivalent of MPI_COMM_WORLD
+  diy::mpi::environment     env(argc, argv); // equivalent of MPI_Init(argc, argv)/MPI_Finalize()
+  diy::mpi::communicator    world;           // equivalent of MPI_COMM_WORLD
 
-    int                       nblocks     = world.size(); // global number of blocks
-                                                          // in this example, one per process
-    size_t                    num_points  = 10;           // points per block
-    int                       mem_blocks  = -1;           // all blocks in memory
-    int                       threads     = 1;            // no multithreading
-    int                       dim         = 3;            // 3-d blocks
+  int                       nblocks     = world.size(); // global number of blocks
+  // in this example, one per process
+  size_t                    num_points  = 10;           // points per block
+  int                       mem_blocks  = -1;           // all blocks in memory
+  int                       threads     = 1;            // no multithreading
+  int                       dim         = 3;            // 3-d blocks
 
-    // get command line arguments
-    using namespace opts;
-    Options ops;
+  // get command line arguments
+  using namespace opts;
+  Options ops;
 
-    bool verbose, contiguous, help;
-    ops
-        >> Option('v', "verbose",    verbose,    "verbose output")
-        >> Option('c', "contiguous", contiguous, "use contiguous partners")
-        >> Option('h', "help",       help,       "show help")
-        ;
+  bool verbose, contiguous, help;
+  ops
+    >> Option('v', "verbose",    verbose,    "verbose output")
+    >> Option('c', "contiguous", contiguous, "use contiguous partners")
+    >> Option('h', "help",       help,       "show help")
+    ;
 
-    ops
-        >> Option('d', "dim",     dim,            "dimension")
-        >> Option('b', "blocks",  nblocks,        "number of blocks")
-        >> Option('t', "thread",  threads,        "number of threads")
-        ;
+  ops
+    >> Option('d', "dim",     dim,            "dimension")
+    >> Option('b', "blocks",  nblocks,        "number of blocks")
+    >> Option('t', "thread",  threads,        "number of threads")
+    ;
 
-    if (!ops.parse(argc, argv) || help)
-    {
-        std::cout << "Usage: " << argv[0] << " [OPTIONS]\n";
-        std::cout << ops;
-        return 1;
-    }
+  if (!ops.parse(argc, argv) || help)
+  {
+    std::cout << "Usage: " << argv[0] << " [OPTIONS]\n";
+    std::cout << ops;
+    return 1;
+  }
 
-    // diy initialization
-    diy::FileStorage       storage("./DIY.XXXXXX"); // used for blocks moved out of core
-    diy::Master            master(world,            // master is the top-level diy object
-                                  threads,
-                                  mem_blocks,
-                                  &Block::create,
-                                  &Block::destroy,
-                                  &storage,
-                                  &Block::save,
-                                  &Block::load);
-    AddBlock               create(master, num_points); // an object for adding new blocks to master
+  // diy initialization
+  diy::FileStorage       storage("./DIY.XXXXXX"); // used for blocks moved out of core
+  diy::Master            master(world,            // master is the top-level diy object
+      threads,
+      mem_blocks,
+      &Block::create,
+      &Block::destroy,
+      &storage,
+      &Block::save,
+      &Block::load);
+  AddBlock               create(master, num_points); // an object for adding new blocks to master
 
-    // set some global data bounds
-    Bounds domain {dim};
-    for (int i = 0; i < dim; ++i)
-    {
-        domain.min[i] = 0;
-        domain.max[i] = 128.;
-    }
+  // set some global data bounds
+  Bounds domain {dim};
+  for (int i = 0; i < dim; ++i)
+  {
+    domain.min[i] = 0;
+    domain.max[i] = 128.;
+  }
 
-    // choice of contiguous or round robin assigner
-    diy::ContiguousAssigner   assigner(world.size(), nblocks);
-    //diy::RoundRobinAssigner   assigner(world.size(), nblocks);
+  // choice of contiguous or round robin assigner
+  diy::ContiguousAssigner   assigner(world.size(), nblocks);
+  //diy::RoundRobinAssigner   assigner(world.size(), nblocks);
 
-    // decompose the domain into blocks
-    diy::RegularDecomposer<Bounds> decomposer(dim, domain, nblocks);
-    decomposer.decompose(world.rank(), assigner, create);
+  // decompose the domain into blocks
+  diy::RegularDecomposer<Bounds> decomposer(dim, domain, nblocks);
+  decomposer.decompose(world.rank(), assigner, create);
 
-    // merge-based reduction: create the partners that determine how groups are formed
-    // in each round and then execute the reduction
+  // merge-based reduction: create the partners that determine how groups are formed
+  // in each round and then execute the reduction
 
-    int k = 2;                               // the radix of the k-ary reduction tree
+  int k = 2;                               // the radix of the k-ary reduction tree
 
-    // partners for merge over regular block grid
-    diy::RegularMergePartners  partners(decomposer,  // domain decomposition
-                                        k,           // radix of k-ary reduction
-                                        contiguous); // contiguous = true: distance doubling
-                                                     // contiguous = false: distance halving
+  // partners for merge over regular block grid
+  diy::RegularMergePartners  partners(decomposer,  // domain decomposition
+      k,           // radix of k-ary reduction
+      contiguous); // contiguous = true: distance doubling
+  // contiguous = false: distance halving
 
-    diy::RegularBroadcastPartners bpartners(decomposer,k,contiguous);
+  diy::RegularBroadcastPartners bpartners(decomposer,k,contiguous);
 
-    cout<<"Block TestData is empty."<<endl;
-    master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
-             { print_block(b, cp, verbose); });  // callback function for each local block
-
-
-    // broadcast with RegularBroadcastPartners
-    // Assign points on which to perform computations
-    diy::reduce(master,                              // Master object
-                assigner,                            // Assigner object
-                bpartners,                            // RegularMergePartners object
-                &assign_data);                               // merge operator callback function
-   
-    cout<<"Now we have TestData."<<endl;
-    master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
-             { print_block(b, cp, verbose); });  // callback function for each local block
-
-    // Run computations in blocks
-    master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
-             { run_computations(b, cp, verbose); });  // callback function for each local block
+  cout<<"Block TestData is empty."<<endl;
+  master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
+      { print_block(b, cp, verbose); });  // callback function for each local block
 
 
-   // reduction
-   /*diy::reduce(master,                              // Master object
-                assigner,                            // Assigner object
-                partners,                            // RegularMergePartners object
-                &sum);                               // merge operator callback function
-   */
+  // broadcast with RegularBroadcastPartners
+  // Assign points on which to perform computations
+  diy::reduce(master,                              // Master object
+      assigner,                            // Assigner object
+      bpartners,                            // RegularMergePartners object
+      &assign_data);                               // merge operator callback function
 
-    cout<<"Printing block TestData contents and results after computations."<<endl;
-    master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
-             { print_block(b, cp, verbose); });  // callback function for each local block
-   
+  cout<<"Now we have TestData."<<endl;
+  master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
+      { print_block(b, cp, verbose); });  // callback function for each local block
 
-   
+  // Run computations in blocks
+  master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
+      { run_computations(b, cp, verbose); });  // callback function for each local block
+
+
+  // reduction
+  /*diy::reduce(master,                              // Master object
+      assigner,                            // Assigner object
+      partners,                            // RegularMergePartners object
+      &sum);                               // merge operator callback function
+  */
+
+  cout<<"Printing block TestData contents and results after computations."<<endl;
+  master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
+      { print_block(b, cp, verbose); });  // callback function for each local block
+
+
+
 }
