@@ -1,16 +1,18 @@
 #include <iostream>
 #include <vector>
+#include <cmath>
 #include <diy/serialization.hpp>
 
 using namespace std;
 
 class Test{
   int a,b;
+  double d;
   public:
   Test() {}
-  Test(int a_,int b_) : a(a_), b(b_) {};
+  Test(int a_,int b_) : a(a_), b(b_) {d=sqrt(a);};
   void print()
-  { std::cout<<"Test : "<<a<<"\t"<<b<<std::endl;}
+  { std::cout<<"Test : "<<a<<"\t"<<b<<"\t"<<d<<std::endl;}
 
 };
 
