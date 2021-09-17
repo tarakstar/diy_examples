@@ -39,8 +39,8 @@ namespace diy
   template<>
   struct Serialization<PointVec>
   {
-    static void save(BinaryBuffer& bb, const PointVec& p)       { diy::save(bb, p.coords); }
-    static void load(BinaryBuffer& bb, PointVec& p)             { diy::load(bb, p.coords); }
+    static void save(BinaryBuffer& bb, const PointVec& p)       { diy::save(bb, p.coords); cout<<"debug1"<<endl; }
+    static void load(BinaryBuffer& bb, PointVec& p)             { diy::load(bb, p.coords); cout<<"debug2"<<endl; }
   };
 }
 
