@@ -183,6 +183,8 @@ void sum(Block* b,                                  // local block
 
   }
 
+  cout<<"Round "<<rp.round()<<"\t"<<rp.gid()<<endl;
+
 }
 
 
@@ -376,11 +378,11 @@ int main(int argc, char* argv[])
 
 
   // reduction
-  /*diy::reduce(master,                              // Master object
+  diy::reduce(master,                              // Master object
       assigner,                            // Assigner object
       partners,                            // RegularMergePartners object
       &sum);                               // merge operator callback function
-  */
+  
 
   cout<<"Printing block TestData contents and results after computations."<<endl;
   master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
