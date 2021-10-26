@@ -16,12 +16,14 @@
 #include <diy/reduce.hpp>
 #include <diy/partners/merge.hpp>
 #include <diy/partners/broadcast.hpp>
+#include <diy/partners/all-reduce.hpp>
 #include <diy/decomposition.hpp>
 #include <diy/assigner.hpp>
 #include <diy/master.hpp>
 #include <diy/serialization.hpp>
 
 #include "opts.h"
+
 
 using namespace std;
 
@@ -41,16 +43,6 @@ class TestData{
       std::cout<<"TestData "<<x<<"\t"<<y<<"\t"<<d<<std::endl;
     }
 };
-
-/*namespace diy
-  {
-  template<>
-  struct Serialization<TestData>
-  {
-  static void save(BinaryBuffer& bb, const TestData& p)       { diy::save(bb, p);cout<<"debug1..."<<endl; }
-  static void load(BinaryBuffer& bb, TestData& p)             { diy::load(bb, p);cout<<"debug2..."<<endl; }
-  };
-  }*/
 
 namespace diy
 {
@@ -109,7 +101,7 @@ struct Block
       data[i] = i;
   }
   // block data
-  Bounds          bounds{0};
+  Bounds          bounds{1};
   vector<int>     data;
   double myresult;
   TestData td;
@@ -149,44 +141,82 @@ struct AddBlock
   size_t        num_points;
 };
 
-// Do something with results of block computations:
+
+//////////////////////////////////////////////////////////
+
+// Perform aggregate calculations
 // In this example : sum (xi^2)
 void sum(Block* b,                                  // local block
     const diy::ReduceProxy& rp,                // communication proxy
-    const diy::RegularMergePartners& partners) // partners of the current block
+    const diy::RegularMergePartners& partners,// partners of the current block 
+    //const diy::RegularAllReducePartners& partners,// partners of the current block 
+    int rounds) 
 {
   unsigned   round    = rp.round();               // current round number
 
+  //cout<<"rplink size "<<rp.in_link().size()<<"\t"<<rp.out_link().size()<<endl;
 
   // step 1: dequeue and merge
   for (int i = 0; i < rp.in_link().size(); ++i)
   {
     int nbr_gid = rp.in_link().target(i).gid;
-    //if (nbr_gid == rp.gid())
-      //continue;
+    if (nbr_gid == rp.gid())
+     continue;
 
-    TestData td;
-    rp.dequeue(nbr_gid, td);
-    b->myresult += td.y;
+    int sum=0;
+    rp.dequeue(nbr_gid,sum);
+    b->myresult += sum;
 
   }
 
   // step 2: enqueue
   for (int i = 0; i < rp.out_link().size(); ++i)    // redundant since size should equal to 1
   {
+
     // only send to root of group, but not self
-    //if (rp.out_link().target(i).gid != rp.gid())
+    if (rp.out_link().target(i).gid != rp.gid())
+    //if(rp.round()!=rounds)
     {
-      rp.enqueue(rp.out_link().target(i), b->td);
+      cout<<"round out gid "<<rp.round()<<"\t"<<rp.gid()<<"\t"<<rp.out_link().target(i).gid<<endl;
+      rp.enqueue(rp.out_link().target(i), b->td.y);
 
     }
-
   }
 
-  cout<<"Round "<<rp.round()<<"\t"<<rp.gid()<<endl;
+  cout<<"Round gid myresult "<<rp.round()<<"\t"<<rp.gid()<<"\t"<<b->myresult<<endl;
+  //cout<<round<<endl;
+  //if(rp.gid()==0){
+  //if(rp.round()==rp.in_link().size()-1){
+  /*if(rp.gid()==0 & rp.round()==rounds){
+    cout<<"-----------------------------"<<endl;
+    cout<<"The root block..."<<endl;
+    cout<<"This should be executed only once."<<endl;
+    //cout<<"myresult = "<<b->myresult<<endl;
+    cout<<"myresult = "<<b->myresult<<endl;
+    cout<<"-----------------------------"<<endl;
+  }*/
 
 }
 
+//////////////////////////////////////////////////////////
+
+void run_serial_code(Block* b,                             // local block
+    const diy::Master::ProxyWithLink& cp, // communication proxy
+    bool verbose)                         //
+{
+
+  //cout<<"gid b->td.y myresult "<<cp.gid()<<"\t"<<b->td.y<<"\t"<<b->myresult<<endl;
+ 
+  //cout<<"total blocks = "<<cp.size()<<endl;
+  if(cp.gid()==0){
+    cout<<"-----------------------------"<<endl;
+    cout<<"The root block..."<<endl;
+    cout<<"This should be executed only once for serial computing."<<endl;
+    cout<<"myresult = "<<b->myresult<<endl;
+    cout<<"-----------------------------"<<endl;
+  }
+
+}
 
 //////////////////////////////////////////////////////////
 // This function involves computation on block data
@@ -277,6 +307,8 @@ void print_block(Block* b,                             // local block
   }
 }
 
+//////////////////////////////////////////////////////////
+
 // --- main program ---//
 
 int main(int argc, char* argv[])
@@ -356,10 +388,10 @@ int main(int argc, char* argv[])
 
   diy::RegularBroadcastPartners bpartners(decomposer,k,contiguous);
 
-  cout<<"Block TestData is empty."<<endl;
+  /*cout<<"Block TestData is empty."<<endl;
   master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
       { print_block(b, cp, verbose); });  // callback function for each local block
-
+  */
 
   // broadcast with RegularBroadcastPartners
   // Assign points on which to perform computations
@@ -368,26 +400,40 @@ int main(int argc, char* argv[])
       bpartners,                            // RegularMergePartners object
       &assign_data);                               // merge operator callback function
 
-  cout<<"Now we have TestData."<<endl;
+  /*cout<<"Now we have TestData."<<endl;
   master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
       { print_block(b, cp, verbose); });  // callback function for each local block
+  */
 
   // Run computations in blocks
   master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
       { run_computations(b, cp, verbose); });  // callback function for each local block
 
+  int rounds = partners.rounds();
+  //cout<<rounds<<endl;
 
   // reduction
   diy::reduce(master,                              // Master object
       assigner,                            // Assigner object
       partners,                            // RegularMergePartners object
-      &sum);                               // merge operator callback function
+      [&](Block* b, const diy::ReduceProxy& rp, const diy::RegularMergePartners& partners )
+      { sum(b, rp, partners, rounds); });
+
+  // all-reduce
+  /*diy::RegularAllReducePartners arpartners(decomposer,k,contiguous);
+
+  diy::reduce(master, assigner, arpartners, [&](Block* b, const diy::ReduceProxy& rp, const diy::RegularAllReducePartners& partners )
+      { sum(b, rp, partners, rounds); });*/
+
   
 
-  cout<<"Printing block TestData contents and results after computations."<<endl;
+ master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
+      { run_serial_code(b, cp, verbose); });  
+
+  /*cout<<"Printing block TestData contents and results after computations."<<endl;
   master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
       { print_block(b, cp, verbose); });  // callback function for each local block
-
+  */
 
 
 }
