@@ -103,7 +103,8 @@ struct Block
   // block data
   Bounds          bounds{1};
   vector<int>     data;
-  double myresult;
+  int myresult;
+  vector<TestData> myresult2;
   TestData td;
 
   private:
@@ -149,7 +150,6 @@ struct AddBlock
 void sum(Block* b,                                  // local block
     const diy::ReduceProxy& rp,                // communication proxy
     const diy::RegularMergePartners& partners,// partners of the current block 
-    //const diy::RegularAllReducePartners& partners,// partners of the current block 
     int rounds) 
 {
   unsigned   round    = rp.round();               // current round number
@@ -165,7 +165,9 @@ void sum(Block* b,                                  // local block
 
     int sum=0;
     rp.dequeue(nbr_gid,sum);
+    //cout<<"Received "<<round<<"\t"<<sum<<endl;
     b->myresult += sum;
+    //b->td.y += sum;
 
   }
 
@@ -175,28 +177,59 @@ void sum(Block* b,                                  // local block
 
     // only send to root of group, but not self
     if (rp.out_link().target(i).gid != rp.gid())
-    //if(rp.round()!=rounds)
     {
-      cout<<"round out gid "<<rp.round()<<"\t"<<rp.gid()<<"\t"<<rp.out_link().target(i).gid<<endl;
-      rp.enqueue(rp.out_link().target(i), b->td.y);
+      //cout<<"round out gid "<<rp.round()<<"\t"<<rp.gid()<<"\t"<<rp.out_link().target(i).gid<<endl;
+      rp.enqueue(rp.out_link().target(i), b->myresult);
+      //cout<<"Sent "<<round<<"\t"<<b->myresult<<endl;
 
     }
   }
 
-  cout<<"Round gid myresult "<<rp.round()<<"\t"<<rp.gid()<<"\t"<<b->myresult<<endl;
-  //cout<<round<<endl;
-  //if(rp.gid()==0){
-  //if(rp.round()==rp.in_link().size()-1){
-  /*if(rp.gid()==0 & rp.round()==rounds){
-    cout<<"-----------------------------"<<endl;
-    cout<<"The root block..."<<endl;
-    cout<<"This should be executed only once."<<endl;
-    //cout<<"myresult = "<<b->myresult<<endl;
-    cout<<"myresult = "<<b->myresult<<endl;
-    cout<<"-----------------------------"<<endl;
-  }*/
+}
+
+
+//////////////////////////////////////////////////////////
+
+// Perform aggregate calculations
+// In this example : sum (xi^2)
+void collect_results(Block* b,                                  // local block
+    const diy::ReduceProxy& rp,                // communication proxy
+    const diy::RegularMergePartners& partners)// partners of the current block 
+
+{
+  unsigned   round    = rp.round();               // current round number
+
+  //cout<<"rplink size "<<rp.in_link().size()<<"\t"<<rp.out_link().size()<<endl;
+
+  // step 1: dequeue and merge
+  for (int i = 0; i < rp.in_link().size(); ++i)
+  {
+    int nbr_gid = rp.in_link().target(i).gid;
+    if (nbr_gid == rp.gid())
+     continue;
+
+    TestData td;
+    rp.dequeue(nbr_gid,td);
+    b->myresult2.push_back(td);
+    //b->td.y += sum;
+
+  }
+
+  // step 2: enqueue
+  for (int i = 0; i < rp.out_link().size(); ++i)    // redundant since size should equal to 1
+  {
+
+    // only send to root of group, but not self
+    if (rp.out_link().target(i).gid != rp.gid())
+    {
+      //cout<<"round out gid "<<rp.round()<<"\t"<<rp.gid()<<"\t"<<rp.out_link().target(i).gid<<endl;
+      rp.enqueue(rp.out_link().target(i), b->td);
+
+    }
+  }
 
 }
+
 
 //////////////////////////////////////////////////////////
 
@@ -207,12 +240,13 @@ void run_serial_code(Block* b,                             // local block
 
   //cout<<"gid b->td.y myresult "<<cp.gid()<<"\t"<<b->td.y<<"\t"<<b->myresult<<endl;
  
-  //cout<<"total blocks = "<<cp.size()<<endl;
   if(cp.gid()==0){
     cout<<"-----------------------------"<<endl;
     cout<<"The root block..."<<endl;
     cout<<"This should be executed only once for serial computing."<<endl;
     cout<<"myresult = "<<b->myresult<<endl;
+    //cout<<"b->td.y "<<b->td.y<<endl;
+    cout<<"Result vector size "<<b->myresult2.size()<<endl;
     cout<<"-----------------------------"<<endl;
   }
 
@@ -226,6 +260,7 @@ void run_computations(Block* b,                             // local block
 {
 
   b->td.mysqrt();
+  b->myresult = b->td.y;
 
 }
 
@@ -265,7 +300,6 @@ void assign_data(Block* b,                                  // local block
   {
     int nbr_gid = rp.in_link().target(i).gid;
 
-    std::vector<int>    in_vals;
     std::vector<TestData>   datar;
     TestData tdobjr;
 
@@ -410,7 +444,7 @@ int main(int argc, char* argv[])
       { run_computations(b, cp, verbose); });  // callback function for each local block
 
   int rounds = partners.rounds();
-  //cout<<rounds<<endl;
+  //cout<<"round = "<<rounds<<endl;
 
   // reduction
   diy::reduce(master,                              // Master object
@@ -419,15 +453,16 @@ int main(int argc, char* argv[])
       [&](Block* b, const diy::ReduceProxy& rp, const diy::RegularMergePartners& partners )
       { sum(b, rp, partners, rounds); });
 
-  // all-reduce
-  /*diy::RegularAllReducePartners arpartners(decomposer,k,contiguous);
 
-  diy::reduce(master, assigner, arpartners, [&](Block* b, const diy::ReduceProxy& rp, const diy::RegularAllReducePartners& partners )
-      { sum(b, rp, partners, rounds); });*/
+ // reduction
+  diy::reduce(master,                              // Master object
+      assigner,                            // Assigner object
+      partners,                            // RegularMergePartners object
+      [&](Block* b, const diy::ReduceProxy& rp, const diy::RegularMergePartners& partners )
+      { collect_results(b, rp, partners); });
 
-  
 
- master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
+  master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
       { run_serial_code(b, cp, verbose); });  
 
   /*cout<<"Printing block TestData contents and results after computations."<<endl;
