@@ -208,10 +208,12 @@ void collect_results(Block* b,                                  // local block
     if (nbr_gid == rp.gid())
      continue;
 
-    TestData td;
-    rp.dequeue(nbr_gid,td);
-    b->myresult2.push_back(td);
-    //b->td.y += sum;
+    vector<TestData> vtd;
+    rp.dequeue(nbr_gid,vtd);
+    for(auto &td:vtd){
+      //td.print();
+      b->myresult2.push_back(td);
+    }
 
   }
 
@@ -223,7 +225,7 @@ void collect_results(Block* b,                                  // local block
     if (rp.out_link().target(i).gid != rp.gid())
     {
       //cout<<"round out gid "<<rp.round()<<"\t"<<rp.gid()<<"\t"<<rp.out_link().target(i).gid<<endl;
-      rp.enqueue(rp.out_link().target(i), b->td);
+      rp.enqueue(rp.out_link().target(i), b->myresult2);
 
     }
   }
@@ -247,6 +249,8 @@ void run_serial_code(Block* b,                             // local block
     cout<<"myresult = "<<b->myresult<<endl;
     //cout<<"b->td.y "<<b->td.y<<endl;
     cout<<"Result vector size "<<b->myresult2.size()<<endl;
+    for(auto &td:b->myresult2)
+      td.print();
     cout<<"-----------------------------"<<endl;
   }
 
@@ -261,6 +265,8 @@ void run_computations(Block* b,                             // local block
 
   b->td.mysqrt();
   b->myresult = b->td.y;
+  b->myresult2.push_back(b->td);
+
 
 }
 
