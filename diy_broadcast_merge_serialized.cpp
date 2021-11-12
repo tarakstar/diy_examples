@@ -44,6 +44,26 @@ class TestData{
     }
 };
 
+class GlobalData{
+  
+  vector<int> data;
+  public:
+    GlobalData() {}
+
+    void add(int i){
+      data.push_back(i);
+    }
+
+    void print(){
+      cout<<"data : ";
+      for(auto i:data)
+        cout<<i<<"\t";
+      cout<<endl;
+    }
+
+};
+
+
 namespace diy
 {
   template<>
@@ -191,7 +211,7 @@ void sum(Block* b,                                  // local block
 //////////////////////////////////////////////////////////
 
 // Perform aggregate calculations
-// In this example : sum (xi^2)
+// In this example : form a vector with results of TestData
 void collect_results(Block* b,                                  // local block
     const diy::ReduceProxy& rp,                // communication proxy
     const diy::RegularMergePartners& partners)// partners of the current block 
@@ -428,10 +448,18 @@ int main(int argc, char* argv[])
 
   diy::RegularBroadcastPartners bpartners(decomposer,k,contiguous);
 
+  GlobalData gb;
+
+
   /*cout<<"Block TestData is empty."<<endl;
   master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
       { print_block(b, cp, verbose); });  // callback function for each local block
   */
+
+
+  for(int i=0;i<2;++i){
+
+  cout<<"iteration : "<<i<<endl;
 
   // broadcast with RegularBroadcastPartners
   // Assign points on which to perform computations
@@ -476,5 +504,7 @@ int main(int argc, char* argv[])
       { print_block(b, cp, verbose); });  // callback function for each local block
   */
 
+
+  }
 
 }
