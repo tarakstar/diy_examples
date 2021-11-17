@@ -1,6 +1,6 @@
 
-// mpic++ diy_test_loop.cpp -I${DIY_INC} -lpthread
-// mpirun -np 2 ./a.out -d 1 -b 2 -v true
+// mpic++ test-GP-outline.cpp -I${DIY_INC} -lpthread
+// mpirun -np 2 ./a.out -d 1 -b 4 -v false
 
 #include <cmath>
 #include <vector>
@@ -212,6 +212,18 @@ void run_serial_code(Block* b,                             // local block
 
 }
 
+
+//////////////////////////////////////////////////////////
+// needs to be called only by the root block
+void initialize_GP(Block* b,                                  // local block
+    const diy::ReduceProxy& rp,                // communication proxy
+    const diy::RegularBroadcastPartners& partners, // partners of the current block
+    int iteration) 
+{
+
+  
+
+}
 //////////////////////////////////////////////////////////
 // This function involves computation on block data
 void run_computations(Block* b,                             // local block
@@ -287,15 +299,16 @@ void assign_data(Block* b,                                  // local block
 //
 void print_block(Block* b,                             // local block
     const diy::Master::ProxyWithLink& cp, // communication proxy
-    bool verbose)                         // user-defined additional arguments
+    bool verbose,int iteration)                         // user-defined additional arguments
 {
 
   //if (verbose && cp.gid() == 0)
   if (verbose)
   {
     //cout<<"myresult : "<<b->myresult<<endl;
-    std::cout<<cp.gid()<<"\t";
-    b->td.print();
+	cout<<"iteration = "<<iteration<<"\t"<<cp.gid()<<endl;
+    //std::cout<<cp.gid()<<"\t";
+    //b->td.print();
     //cout<<"Result = "<<b->myresult<<endl;
   }
 }
@@ -384,14 +397,9 @@ int main(int argc, char* argv[])
   GlobalData gb;
 
 
-  /*cout<<"Block TestData is empty."<<endl;
-  master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
-      { print_block(b, cp, verbose); });  // callback function for each local block
-  */
-
   int myrank;
   MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-  cout<<"Rank = "<<myrank<<endl;
+  //cout<<"Rank = "<<myrank<<endl;
 
   for(int it=0;it<2;++it){
 
@@ -407,16 +415,16 @@ int main(int argc, char* argv[])
 		*/
 
 
-	  diy::reduce(master,                              // Master object
+	  /*diy::reduce(master,                              // Master object
 		  assigner,                            // Assigner object
 		  bpartners,                            // RegularMergePartners object
 		  [&] (Block* b, const diy::ReduceProxy& rp, const diy::RegularBroadcastPartners& partners )  
 		  { assign_data (b,rp,bpartners,(myrank+1)*100+(it+1)*10); });                               // merge operator callback function
-
+	  */
 
 	  //cout<<"Now we have TestData."<<endl;
-	  master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
-		  { print_block(b, cp, verbose); });  // callback function for each local block
+	  master.foreach([&](Block* b, const diy::Master::ProxyWithLink& cp)
+		  { print_block(b, cp, verbose,(myrank+1)*100+(it+1)*10); });  // callback function for each local block
 	  
 
 	  // Run computations in blocks
