@@ -252,7 +252,6 @@ void collect_results(Block* b,                                  // local block
 
 }
 
-
 //////////////////////////////////////////////////////////
 
 void run_serial_code(Block* b,                             // local block
@@ -310,37 +309,47 @@ void assign_data(Block* b,                                  // local block
 
   //cout<<"Broadcasting data...."<<rp.gid()<<endl;
   //cout<<"in out : "<<rp.in_link().size()<<"\t"<<rp.out_link().size()<<endl;
+  
+  // Only the root block data gets broadcasted to others
+  if(rp.gid()==0){
+    for (int i = 0; i < rp.out_link().size(); ++i)  
+        rp.enqueue(rp.out_link().target(i), mydata2);
+    }
+  else{
 
-  // send data to others but not to the self
-  for (int i = 0; i < rp.out_link().size(); ++i)  
-  {
-    // The following lines try eneueing different data types
-    //rp.enqueue(rp.out_link().target(i), mydata);
-    rp.enqueue(rp.out_link().target(i), mydata2);
-    //rp.enqueue(rp.out_link().target(i), tdobj);
-  }
+    // now receive data which was sent and set block's vector<int> values from it.
+    //cout<<"Receiving bcast..."<<rp.gid()<<endl;
+    for (int i = 0; i < rp.in_link().size(); ++i)
+    {
+      int nbr_gid = rp.in_link().target(i).gid;
 
-  // now receive data which was sent and set block's vector<int> values from it.
-  //cout<<"Receiving bcast..."<<rp.gid()<<endl;
-  for (int i = 0; i < rp.in_link().size(); ++i)
-  {
-    int nbr_gid = rp.in_link().target(i).gid;
+      std::vector<TestData>   datar;
+      TestData tdobjr;
 
-    std::vector<TestData>   datar;
-    TestData tdobjr;
+      //cout<<"dequeue start "<<nbr_gid<<"\t"<<rp.gid()<<endl;
+      // The following lines try deneueing different data types
 
-    //cout<<"dequeue start "<<nbr_gid<<"\t"<<rp.gid()<<endl;
-    // The following lines try deneueing different data types
+      //rp.dequeue(nbr_gid, in_vals); // vector<int>
+      rp.dequeue(nbr_gid, datar); // vector<TestData>
+      //rp.dequeue(nbr_gid, tdobjr); // TestData
 
-    //rp.dequeue(nbr_gid, in_vals); // vector<int>
-    rp.dequeue(nbr_gid, datar); // vector<TestData>
-    //rp.dequeue(nbr_gid, tdobjr); // TestData
+      //cout<<"dequeue success "<<endl;
+      //std::cout<<datar->size()<<std::endl;
+      b->td = datar.at(rp.gid()); // pick-up msg for at current block gid
+      //b->td =  tdobjr;
 
-    //cout<<"dequeue success "<<endl;
-    //std::cout<<datar->size()<<std::endl;
-    b->td = datar.at(rp.gid()); // pick-up msg for at current block gid
-    //b->td =  tdobjr;
-    //b->mynum = in_vals[rp.gid()];
+      }
+
+    // send data to others but not to the self
+    for (int i = 0; i < rp.out_link().size(); ++i)  
+    {
+      //cout<<"Broadcasting data...."<<rp.gid()<<endl;
+      // The following lines try eneueing different data types
+      //rp.enqueue(rp.out_link().target(i), mydata);
+        rp.enqueue(rp.out_link().target(i), mydata2);
+      //rp.enqueue(rp.out_link().target(i), tdobj);
+    }
+
 
   }
 
@@ -457,10 +466,6 @@ int main(int argc, char* argv[])
   */
 
 
-  for(int i=0;i<2;++i){
-
-  cout<<"iteration : "<<i<<endl;
-
   // broadcast with RegularBroadcastPartners
   // Assign points on which to perform computations
   diy::reduce(master,                              // Master object
@@ -505,6 +510,5 @@ int main(int argc, char* argv[])
   */
 
 
-  }
 
 }
