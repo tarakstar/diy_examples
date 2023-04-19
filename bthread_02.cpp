@@ -33,7 +33,7 @@ void ThreadFunction()
     int counter = 0;
 
     //for(;;)
-     while(true)
+    while(true)
     {
         cout << "thread iteration " << ++counter << " Press Enter to stop" << endl;
 
@@ -44,8 +44,9 @@ void ThreadFunction()
             // use boost::this_thread::interruption_point()
             // which also throws boost::thread_interrupted
             boost::this_thread::interruption_point();
-            boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+            boost::this_thread::sleep(boost::posix_time::milliseconds(400));
             boost::this_thread::interruption_point();
+            //cout<<"Thread completed without an interruption."<<endl;
             //if(counter>1) break;
           }
         catch(boost::thread_interrupted&)
