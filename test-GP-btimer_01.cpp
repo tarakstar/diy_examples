@@ -33,9 +33,30 @@ class TestData{
   public:
     int x=0;
     int y=0;
+    int counter=0;
     TestData() {}
     TestData(int a) : x(a){}
-    void compute() {y = x*x;}
+
+    void compute(){
+    //while(true){
+      try{
+      
+        cout<<"Worker thread running..."<< counter++ <<endl;
+        boost::this_thread::interruption_point();
+        boost::this_thread::sleep(boost::posix_time::milliseconds(2000));
+        y = x*x;
+        boost::this_thread::interruption_point();
+      }
+
+      catch(boost::thread_interrupted&)
+        {
+            cout << "Worker thread is interrupted." << endl;
+            return;
+        }
+      //}
+
+    }
+
     void print(){
       std::cout<<"TestData "<<x<<"\t"<<y<<std::endl;
     }
@@ -73,10 +94,10 @@ class th_timer{
        boost::this_thread::sleep_for(boost::chrono::milliseconds(timeout_milisec));
        timer.store(false);
        cout<<"Timed out...."<<endl;
-       if(th.joinable()){
+       //if(th.joinable()){
          th.interrupt();
          //cout<<"Computing thread interrupted."<<endl;
-       }
+       //}
        
     }
 
@@ -264,23 +285,9 @@ void run_computations(Block* b,                             // local block
     bool verbose)                         //
 {
 
-  cout<<"worker thread working..."<<endl;
-  try{
-
-    boost::this_thread::interruption_point();
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(500));
-    boost::this_thread::interruption_point();    
-    cout<<"worker running computatinon."<<endl;
-    b->td.compute();
-     
-    b->myresult = b->td.y;
-    b->myresult2.push_back(b->td);
-  }
-  catch(boost::thread_interrupted&){
-      cout << "Thread is interrupted." << endl;
-      return;
-  }
-
+  b->td.compute();
+  b->myresult = b->td.y;
+  b->myresult2.push_back(b->td);
 }
 
 
@@ -501,19 +508,11 @@ int main(int argc, char* argv[])
 	  
 
 	  // Run computations in blocks
-	  //master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
-		//  { run_computations(b, cp, verbose); });  // callback function for each local block
-
-
 	  master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
 		  { 
-          launch_threads(b,cp,verbose);  
-          //run_computations(b, cp, verbose);      
-          //boost::thread t(&run_computations,b,cp,verbose);     
-          //run_computations(b, cp, verbose); 
-          //th_timer gb(2,boost::ref(t));
+        //run_computations(b, cp, verbose); 
+        launch_threads(b,cp,verbose);
       });  // callback function for each local block
-
 
 	  int rounds = partners.rounds();
 	  //cout<<"round = "<<rounds<<endl;

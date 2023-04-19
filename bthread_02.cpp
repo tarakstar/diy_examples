@@ -32,7 +32,8 @@ void ThreadFunction()
 {
     int counter = 0;
 
-    for(;;)
+    //for(;;)
+     while(true)
     {
         cout << "thread iteration " << ++counter << " Press Enter to stop" << endl;
 
