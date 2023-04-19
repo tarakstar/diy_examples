@@ -45,6 +45,7 @@ void ThreadFunction()
             boost::this_thread::interruption_point();
             boost::this_thread::sleep(boost::posix_time::milliseconds(500));
             boost::this_thread::interruption_point();
+            //if(counter>1) break;
           }
         catch(boost::thread_interrupted&)
         {
@@ -65,7 +66,7 @@ int main()
     th_timer gb(2,boost::ref(t));
     gb.timer.store(true);
     boost::thread timer(boost::ref(gb));
-
+    timer.join();
 
     // Join - wait when thread actually exits
     t.join();

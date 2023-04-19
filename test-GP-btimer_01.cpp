@@ -61,19 +61,22 @@ class GlobalData{
 };
 
 class th_timer{
-  int timeout_sec;
+  int timeout_milisec;
   public:
     //std::mutex m;
     boost::atomic_bool timer{true};
     boost::thread& th;
     //std::condition_variable flag;
-    th_timer(int timeout,boost::thread& t):timeout_sec(timeout),th(t){}
+    th_timer(int timeout,boost::thread& t):timeout_milisec(timeout),th(t){}
 
     void operator()(){
-       boost::this_thread::sleep_for(boost::chrono::seconds(timeout_sec));
+       boost::this_thread::sleep_for(boost::chrono::milliseconds(timeout_milisec));
        timer.store(false);
        cout<<"Timed out...."<<endl;
-       th.interrupt();
+       if(th.joinable()){
+         th.interrupt();
+         //cout<<"Computing thread interrupted."<<endl;
+       }
        
     }
 
@@ -236,8 +239,8 @@ void run_serial_code(Block* b,                             // local block
       td.print();
     cout<<"-----------------------------"<<endl;
     //std::this_thread::sleep_until(starting_time + one_sec);
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(2000));
-    cout<<"Woke up...."<<endl;
+    //boost::this_thread::sleep_for(boost::chrono::milliseconds(2000));
+    //cout<<"Woke up...."<<endl;
   }
 
 }
@@ -261,12 +264,52 @@ void run_computations(Block* b,                             // local block
     bool verbose)                         //
 {
 
-  b->td.compute();
+  cout<<"worker thread working..."<<endl;
+  try{
+
+    boost::this_thread::interruption_point();
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(500));
+    boost::this_thread::interruption_point();    
+    cout<<"worker running computatinon."<<endl;
+    b->td.compute();
+     
+    b->myresult = b->td.y;
+    b->myresult2.push_back(b->td);
+  }
+  catch(boost::thread_interrupted&){
+      cout << "Thread is interrupted." << endl;
+      return;
+  }
+
+}
+
+
+//////////////////////////////////////////////////////////
+// This function runs the timer and computation threads
+void launch_threads(Block* b,                             // local block
+    const diy::Master::ProxyWithLink& cp, // communication proxy
+    bool verbose)                         //
+{
+
+  /*b->td.compute();
+  b->myresult = b->td.y;
+  b->myresult2.push_back(b->td);*/
+
+  boost::thread t(&TestData::compute,b->td); 
+  t.join();
+
+  th_timer gb(50,boost::ref(t));
+  gb.timer.store(true);
+  boost::thread timer(boost::ref(gb));
+  timer.join();
+
+
   b->myresult = b->td.y;
   b->myresult2.push_back(b->td);
 
 
 }
+
 
 //////////////////////////////////////////////////////////
 // This function broadcasts a vector<int> to all blocks and also receive it.
@@ -464,9 +507,11 @@ int main(int argc, char* argv[])
 
 	  master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
 		  { 
-          boost::thread t(&run_computations,b,cp,verbose);     
+          launch_threads(b,cp,verbose);  
+          //run_computations(b, cp, verbose);      
+          //boost::thread t(&run_computations,b,cp,verbose);     
           //run_computations(b, cp, verbose); 
-          th_timer gb(2,boost::ref(t));
+          //th_timer gb(2,boost::ref(t));
       });  // callback function for each local block
 
 
