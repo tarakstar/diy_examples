@@ -6,6 +6,11 @@ mpirun -np 2 ./a.out -d 1 -b 4 -v false
 It appears that boost::thread completion/interruption is now working,
 Results aggregation working too:  b->td needed to be replaced with boost::ref(b->td)
 
+If the timer times out before worker computations, worker threads are interrupted and the correct results is not produced. e.g. Result: 0 is printed.
+
+If workers finsih computation before timer times out, correct results are printed.
+e.g. Result: 4,...
+
 What more tests should be done to validate this example w.r.t. thread mechanism?
 
 */
@@ -283,7 +288,7 @@ void launch_threads(Block* b,                             // local block
   boost::thread t(&TestData::compute,boost::ref(b->td));
 
   // Create and launch the timer thread
-  th_timer gb(400,boost::ref(t));
+  th_timer gb(510,boost::ref(t));
   gb.timer.store(true);
   boost::thread timer(boost::ref(gb));
 
@@ -479,8 +484,8 @@ int main(int argc, char* argv[])
     // Run computations in blocks
     master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
     { 
-        //run_computations(b, cp, verbose); // without boost::thread - works as expected
-        launch_threads(b,cp,verbose); // with boosst::thread - dosn't work as exected
+        //run_computations(b, cp, verbose); // without boost::thread 
+        launch_threads(b,cp,verbose); // with boosst::thread 
     });  
 
     int rounds = partners.rounds();
