@@ -1,6 +1,12 @@
 
-// mpic++ test-GP-btimer_01.cpp -I${DIY_INC} -lboost_thread -lboost_system -lboost_chrono -lpthread
-// mpirun -np 2 ./a.out -d 1 -b 4 -v false
+/*
+mpic++ test-GP-btimer_01.cpp -I${DIY_INC} -lboost_thread -lboost_system -lboost_chrono 
+mpirun -np 2 ./a.out -d 1 -b 4 -v false
+
+It appears that one DIY block is running just one boost:thread
+
+
+*/
 
 #include <cmath>
 #include <vector>
@@ -8,7 +14,6 @@
 #include <boost/thread.hpp>
 #include <boost/chrono.hpp>
 #include <boost/atomic.hpp>
-
 
 #include <diy/master.hpp>
 #include <diy/reduce.hpp>
@@ -42,10 +47,10 @@ class TestData{
         try{
 
           cout<<"Worker thread running... thread_id="<< boost::this_thread::get_id() <<endl;
-          boost::this_thread::interruption_point();
-          boost::this_thread::sleep(boost::posix_time::milliseconds(5000));
+          //boost::this_thread::interruption_point();
+          boost::this_thread::sleep_for(boost::chrono::milliseconds(500));
           y = x*x;
-          boost::this_thread::interruption_point();
+          //boost::this_thread::interruption_point();
         }
 
         catch(boost::thread_interrupted&)
@@ -55,35 +60,16 @@ class TestData{
         }
      //}
 
-
     }
 
-    void print(){
-      std::cout<<"TestData "<<x<<"\t"<<y<<std::endl;
+    void printdata(){
+      std::cout<<"TestData "<<x<<std::endl;
     }
 };
 
-class GlobalData{
-
-  vector<int> data;
-  public:
-  GlobalData() {}
-
-  void add(int i){
-    data.push_back(i);
-  }
-
-  void print(){
-    cout<<"data : ";
-    for(auto i:data)
-      cout<<i<<"\t";
-    cout<<endl;
-  }
-
-};
-
+//////////////////////////////////////////////////////////////////
 class th_timer{
-  int timeout_milisec=10;
+  int timeout_milisec=1000;
   public:
   //std::mutex m;
   boost::atomic_bool timer{true};
@@ -92,8 +78,8 @@ class th_timer{
   th_timer(int timeout,boost::thread& t):timeout_milisec(timeout),th(t){}
 
   void operator()(){
+    cout<<"Timer thread running... thread_id="<< boost::this_thread::get_id() <<endl;
     boost::this_thread::sleep_for(boost::chrono::milliseconds(timeout_milisec));
-    //boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
     timer.store(false);
     cout<<"Timed out...."<<endl;
     //if(th.joinable()){
@@ -105,6 +91,7 @@ class th_timer{
 
 };
 
+//////////////////////////////////////////////////////////////////
 
 namespace diy
 {
@@ -156,7 +143,8 @@ struct Block
   Bounds          bounds{1};
   int     data;
   int myresult;
-  vector<TestData> myresult2;
+  vector<TestData> data_full;
+  vector<TestData> resultsvec;
   TestData td;
 
   private:
@@ -218,7 +206,7 @@ void collect_results(Block* b,                                  // local block
     rp.dequeue(nbr_gid,vtd);
     for(auto &td:vtd){
       //td.print();
-      b->myresult2.push_back(td);
+      b->resultsvec.push_back(td);
     }
 
   }
@@ -231,11 +219,23 @@ void collect_results(Block* b,                                  // local block
     if (rp.out_link().target(i).gid != rp.gid())
     {
       //cout<<"round out gid "<<rp.round()<<"\t"<<rp.gid()<<"\t"<<rp.out_link().target(i).gid<<endl;
-      rp.enqueue(rp.out_link().target(i), b->myresult2);
+      rp.enqueue(rp.out_link().target(i), b->resultsvec);
 
     }
   }
 
+}
+
+//////////////////////////////////////////////////////////
+// This function involves computation on block data
+void run_computations(Block* b,                             // local block
+    const diy::Master::ProxyWithLink& cp, // communication proxy
+    bool verbose)                         //
+{
+
+  b->td.compute();
+  b->myresult = b->td.y;
+  b->resultsvec.push_back(b->td);
 }
 
 
@@ -247,49 +247,21 @@ void run_serial_code(Block* b,                             // local block
 {
 
   //cout<<"gid b->td.y myresult "<<cp.gid()<<"\t"<<b->td.y<<"\t"<<b->myresult<<endl;
-  std::chrono::seconds one_sec(1);
-  //std::chrono::time_point starting_time = std::chrono::steady_clock::now();
-
-
+  
   if(cp.gid()==0){
     cout<<"-----------------------------"<<endl;
     cout<<"The root block..."<<endl;
     cout<<"This should be executed only once for serial computing."<<endl;
-    cout<<"myresult = "<<b->myresult<<endl;
+    //cout<<"myresult = "<<b->myresult<<endl;
     //cout<<"b->td.y "<<b->td.y<<endl;
-    cout<<"Result vector size "<<b->myresult2.size()<<endl;
-    for(auto &td:b->myresult2)
-      td.print();
+    cout<<"-------Printing aggregated results-------------------"<<endl;    
+    cout<<"Result vector size "<<b->resultsvec.size()<<endl;
+    for(auto &td:b->resultsvec)
+      cout<<"Result: "<<td.y<<endl;
     cout<<"-----------------------------"<<endl;
-    //std::this_thread::sleep_until(starting_time + one_sec);
-    //boost::this_thread::sleep_for(boost::chrono::milliseconds(2000));
-    //cout<<"Woke up...."<<endl;
+
   }
 
-}
-
-
-//////////////////////////////////////////////////////////
-// needs to be called only by the root block
-void initialize_GP(Block* b,                                  // local block
-    const diy::ReduceProxy& rp,                // communication proxy
-    const diy::RegularBroadcastPartners& partners, // partners of the current block
-    int iteration) 
-{
-
-
-
-}
-//////////////////////////////////////////////////////////
-// This function involves computation on block data
-void run_computations(Block* b,                             // local block
-    const diy::Master::ProxyWithLink& cp, // communication proxy
-    bool verbose)                         //
-{
-
-  b->td.compute();
-  b->myresult = b->td.y;
-  b->myresult2.push_back(b->td);
 }
 
 
@@ -300,81 +272,81 @@ void launch_threads(Block* b,                             // local block
     bool verbose)                         //
 {
 
+  // no thread computations
   /*b->td.compute();
     b->myresult = b->td.y;
     b->myresult2.push_back(b->td);*/
 
-  boost::thread t(&TestData::compute,b->td); 
+  // create and launch the worker thread
+  boost::thread t(&TestData::compute,b->td);
   t.join();
 
-  // set a timer for 50 milli-sec
-  th_timer gb(50,boost::ref(t));
+  // Create and launch the timer thread
+  th_timer gb(1000,boost::ref(t));
   gb.timer.store(true);
   boost::thread timer(boost::ref(gb));
   timer.join();
 
-
+  cout<<"All threads finished..."<<endl;
   b->myresult = b->td.y;
-  b->myresult2.push_back(b->td);
+  b->resultsvec.push_back(b->td);
 
 
 }
 
-
 //////////////////////////////////////////////////////////
 // This function broadcasts a vector<int> to all blocks and also receive it.
-void assign_data(Block* b,                                  // local block
+void assign_data_new(Block* b,                                  // local block
     const diy::ReduceProxy& rp,                // communication proxy
     const diy::RegularBroadcastPartners& partners, // partners of the current block
     int iteration) 
 {
   unsigned   round    = rp.round();               // current round number
-                                                  //cout<<"round = "<<round<<endl;
-  std::vector<int> mydata; // data to be broadcasted
-  std::vector<TestData> mydata2;
-  TestData tdobj(15);
 
-  for(int i=0;i<10;i++){
-    //TestData td(i);
-    TestData td(i+iteration);
-    mydata2.push_back(td);
-    mydata.push_back(i);
+   if(rp.gid()==0){ //broadcast root data
+    //std::vector<int> mydata; // data to be broadcasted
+    std::vector<TestData> data_full;
+    //TestData tdobj(15);
+
+    // prepare a vector of 10 TestData objects
+    for(int i=0;i<10;i++){
+      TestData td(i);
+      data_full.push_back(td);
+    }
+
+    for (int i = 0; i < rp.out_link().size(); ++i)  
+    {
+      rp.enqueue(rp.out_link().target(i), data_full);
+    }
   }
+   else{
 
-  //cout<<"Broadcasting data...."<<rp.gid()<<endl;
-  //cout<<"in out : "<<rp.in_link().size()<<"\t"<<rp.out_link().size()<<endl;
+      for (int i = 0; i < rp.in_link().size(); ++i)
+      {
+        int nbr_gid = rp.in_link().target(i).gid;
 
-  // send data to others but not to the self
-  for (int i = 0; i < rp.out_link().size(); ++i)  
-  {
-    // The following lines try eneueing different data types
-    //rp.enqueue(rp.out_link().target(i), mydata);
-    rp.enqueue(rp.out_link().target(i), mydata2);
-    //rp.enqueue(rp.out_link().target(i), tdobj);
-  }
+        std::vector<TestData>   datar;
 
-  // now receive data which was sent and set block's vector<int> values from it.
-  //cout<<"Receiving bcast..."<<rp.gid()<<endl;
-  for (int i = 0; i < rp.in_link().size(); ++i)
-  {
-    int nbr_gid = rp.in_link().target(i).gid;
+        rp.dequeue(nbr_gid, datar);
+      
+        b->data_full = datar;
+        b->td = datar.at(rp.gid()); // read msg for at the current block gid
+         
+      }
 
-    std::vector<TestData>   datar;
-    TestData tdobjr;
+      // send data to others but not to the self
+      for (int i = 0; i < rp.out_link().size(); ++i)  
+      {
+        rp.enqueue(rp.out_link().target(i), b->data_full);
+      }
 
-    //rp.dequeue(nbr_gid, in_vals); // vector<int>
-    rp.dequeue(nbr_gid, datar); // vector<TestData>
-                                //rp.dequeue(nbr_gid, tdobjr); // TestData
 
-    b->td = datar.at(rp.gid()); // pick-up msg for at current block gid
-                                //b->td =  tdobjr;
-                                //b->mynum = in_vals[rp.gid()];
-
-  }
-
+   }
 
   //cout<<"Broadcast complete."<<endl;
 }
+
+
 //////////////////////////////////////////////////////////
 
 //
@@ -389,9 +361,9 @@ void print_block(Block* b,                             // local block
   if (verbose)
   {
     //cout<<"myresult : "<<b->myresult<<endl;
-    cout<<"iteration = "<<iteration<<"\t"<<cp.gid()<<endl;
-    //std::cout<<cp.gid()<<"\t";
-    //b->td.print();
+    //cout<<"iteration = "<<iteration<<"\t"<<cp.gid()<<endl;
+    std::cout<<cp.gid()<<"\t";
+    b->td.printdata();
     //cout<<"Result = "<<b->myresult<<endl;
   }
 }
@@ -477,9 +449,6 @@ int main(int argc, char* argv[])
 
   diy::RegularBroadcastPartners bpartners(decomposer,k,contiguous);
 
-  GlobalData gb;
-
-
   int myrank;
   MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
   //cout<<"Rank = "<<myrank<<endl;
@@ -491,18 +460,11 @@ int main(int argc, char* argv[])
 
     // broadcast with RegularBroadcastPartners
     // Assign points on which to perform computations
-    /*diy::reduce(master,                              // Master object
-      assigner,                            // Assigner object
-      bpartners,                            // RegularMergePartners object
-      &assign_data);                               // merge operator callback function
-     */
-
-
     diy::reduce(master,                              // Master object
         assigner,                            // Assigner object
         bpartners,                            // RegularMergePartners object
         [&] (Block* b, const diy::ReduceProxy& rp, const diy::RegularBroadcastPartners& partners )  
-        { assign_data (b,rp,bpartners,(myrank+1)*100+(it+1)*10); });                               // merge operator callback function
+        { assign_data_new (b,rp,bpartners,(myrank+1)*100+(it+1)*10); });                               // merge operator callback function
 
 
     //cout<<"Now we have TestData."<<endl;
@@ -512,10 +474,10 @@ int main(int argc, char* argv[])
 
     // Run computations in blocks
     master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
-        { 
-        //run_computations(b, cp, verbose); 
-        launch_threads(b,cp,verbose);
-        });  // callback function for each local block
+    { 
+        //run_computations(b, cp, verbose); // without boost::thread - works as expected
+        launch_threads(b,cp,verbose); // with boosst::thread - dosn't work as exected
+    });  
 
     int rounds = partners.rounds();
     //cout<<"round = "<<rounds<<endl;
@@ -525,17 +487,13 @@ int main(int argc, char* argv[])
         assigner,                            // Assigner object
         partners,                            // RegularMergePartners object
         [&](Block* b, const diy::ReduceProxy& rp, const diy::RegularMergePartners& partners )
-        { collect_results(b, rp, partners); });
+        { collect_results(b, rp, partners);  });
 
 
+    // The serial code loops over all processed TestData and prints their results individually
     master.foreach([verbose](Block* b, const diy::Master::ProxyWithLink& cp)
-        { run_serial_code(b, cp, verbose); });  
-
-    cout<<"Printing block TestData contents and results after computations."<<endl;
-    master.foreach([&](Block* b, const diy::Master::ProxyWithLink& cp)
-        { print_block(b, cp, verbose,it); });  // callback function for each local block
-
-
+        { run_serial_code(b, cp, verbose);  });  
+   
 
   }
 
