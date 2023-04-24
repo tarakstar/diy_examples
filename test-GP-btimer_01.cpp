@@ -3,7 +3,8 @@
 mpic++ test-GP-btimer_01.cpp -I${DIY_INC} -lboost_thread -lboost_system -lboost_chrono 
 mpirun -np 2 ./a.out -d 1 -b 4 -v false
 
-It appears that one DIY block is running just one boost:thread
+It appears that boost::thread completion/interruption is now working,
+but the results from DIY blocks aren't aggregated.
 
 
 */
@@ -279,13 +280,15 @@ void launch_threads(Block* b,                             // local block
 
   // create and launch the worker thread
   boost::thread t(&TestData::compute,b->td);
-  t.join();
 
   // Create and launch the timer thread
   th_timer gb(1000,boost::ref(t));
   gb.timer.store(true);
   boost::thread timer(boost::ref(gb));
+
+  // join() must be called here.
   timer.join();
+  t.join();
 
   cout<<"All threads finished..."<<endl;
   b->myresult = b->td.y;
