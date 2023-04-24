@@ -186,9 +186,6 @@ struct AddBlock
   diy::Master&  master;
 };
 
-
-
-
 //////////////////////////////////////////////////////////
 
 // Perform aggregate calculations
@@ -279,11 +276,6 @@ void launch_threads(Block* b,                             // local block
     bool verbose)                         //
 {
 
-  // no thread computations
-  /*b->td.compute();
-    b->myresult = b->td.y;
-    b->myresult2.push_back(b->td);*/
-
   // create and launch the worker thread
   boost::thread t(&TestData::compute,boost::ref(b->td));
 
@@ -355,12 +347,9 @@ void assign_data_new(Block* b,                                  // local block
   //cout<<"Broadcast complete."<<endl;
 }
 
-
 //////////////////////////////////////////////////////////
 
-//
 // prints the block values
-//
 void print_block(Block* b,                             // local block
     const diy::Master::ProxyWithLink& cp, // communication proxy
     bool verbose,int iteration)                         // user-defined additional arguments
