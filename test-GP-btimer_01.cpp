@@ -4,8 +4,9 @@ mpic++ test-GP-btimer_01.cpp -I${DIY_INC} -lboost_thread -lboost_system -lboost_
 mpirun -np 2 ./a.out -d 1 -b 4 -v false
 
 It appears that boost::thread completion/interruption is now working,
-but the results from DIY blocks aren't aggregated.
+Results aggregation working too:  b->td needed to be replaced with boost::ref(b->td)
 
+What more tests should be done to validate this example w.r.t. thread mechanism?
 
 */
 
@@ -279,10 +280,10 @@ void launch_threads(Block* b,                             // local block
     b->myresult2.push_back(b->td);*/
 
   // create and launch the worker thread
-  boost::thread t(&TestData::compute,b->td);
+  boost::thread t(&TestData::compute,boost::ref(b->td));
 
   // Create and launch the timer thread
-  th_timer gb(1000,boost::ref(t));
+  th_timer gb(400,boost::ref(t));
   gb.timer.store(true);
   boost::thread timer(boost::ref(gb));
 
