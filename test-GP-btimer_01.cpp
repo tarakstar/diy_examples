@@ -153,6 +153,7 @@ struct Block
   vector<TestData> data_full;
   vector<TestData> resultsvec;
   TestData td;
+  vector<int> myvec_int;
 
   private:
   Block() {}
@@ -240,6 +241,7 @@ void run_computations(Block* b,                             // local block
   b->td.compute();
   b->myresult = b->td.y;
   b->resultsvec.push_back(b->td);
+  b->myvec_int.push_back(cp.gid());
 }
 
 
