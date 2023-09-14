@@ -60,7 +60,12 @@ class FCCollection{
 class GPFitMsg{
   public:
   FCCollection fcol;
+  GPFitMsg (){};
   GPFitMsg (FCCollection fccol): fcol(fccol) {};
+  void SetFitMsg (FCCollection fccol_)
+  { fcol = fccol_;
+    return;
+  }
 };
 
 class BContainer{
@@ -74,25 +79,34 @@ class BContainer{
         FCPoint fcp;
         fcol.fPts.push_back(fcp);
       }
-    GPFitMsg gpfm(fcol);
+    //GPFitMsg gpfm(fcol);
+    GPFitMsg gpfm;
+    gpfm.fcol = fcol;
     gp_fitmsg_total.push_back(gpfm);
       
     }
 };
 
 //////////////////////////////////////////////////////////
+
+// This is equivalent to Run_Fits_Real(...)
 void Generate_Data(vector<GPFitMsg>& gp_fitmsg_total)
 {
     FCCollection fcol;
+
     for(int i=0;i<5;i++){
       FCPoint fcp;
       fcol.fPts.push_back(fcp);
     }
-    GPFitMsg gpfm(fcol);
+
+    //GPFitMsg gpfm(fcol);
+    GPFitMsg gpfm;
+    gpfm.fcol = fcol;
     gp_fitmsg_total.push_back(gpfm);
 
 }
 
+//////////////////////////////////////////////////////////
 
 // A class to test serialized data exchange
 class TestData{
